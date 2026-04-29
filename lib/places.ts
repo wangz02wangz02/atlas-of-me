@@ -1,29 +1,10 @@
+import "server-only";
 import fs from "node:fs";
 import path from "node:path";
+import type { Continent, Place, Stats } from "./places-types";
 
-export type Continent =
-  | "Africa"
-  | "Asia"
-  | "Europe"
-  | "North America"
-  | "South America"
-  | "Oceania"
-  | "Antarctica";
-
-export type Place = {
-  slug: string;
-  name: string;
-  country: string;
-  continent: Continent;
-  /** [longitude, latitude] — GeoJSON order, what react-simple-maps expects. */
-  coordinates: [number, number];
-  visitedAt: string; // ISO date or year-month
-  year: number;
-  tagline: string;
-  journal: string; // markdown-lite (paragraphs separated by blank lines)
-  photos: { src: string; alt: string; credit?: string }[];
-  audio?: { src: string; durationLabel?: string };
-};
+export type { Continent, Place, Stats } from "./places-types";
+export { CONTINENT_VIEW } from "./places-types";
 
 const CONTENT_DIR = path.join(process.cwd(), "content", "places");
 
@@ -39,7 +20,6 @@ export function getAllPlaces(): Place[] {
     const raw = fs.readFileSync(path.join(CONTENT_DIR, file), "utf8");
     return JSON.parse(raw) as Place;
   });
-  // Sort newest visit first
   places.sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
   cache = places;
   return places;
@@ -55,14 +35,6 @@ export function getContinents(): Continent[] {
   return Array.from(set).sort() as Continent[];
 }
 
-export type Stats = {
-  totalPlaces: number;
-  totalCountries: number;
-  totalContinents: number;
-  totalDistanceKm: number;
-};
-
-/** Haversine distance in km between two [lon, lat] points. */
 function haversineKm(a: [number, number], b: [number, number]): number {
   const R = 6371;
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -81,7 +53,6 @@ export function getStats(): Stats {
   const countries = new Set(places.map((p) => p.country));
   const continents = new Set(places.map((p) => p.continent));
   let totalDistanceKm = 0;
-  // Treat the journey as visits in chronological order, summing leg distances.
   const chrono = [...places].sort((a, b) =>
     a.visitedAt.localeCompare(b.visitedAt),
   );

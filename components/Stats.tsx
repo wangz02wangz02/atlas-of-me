@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { animate, useInView } from "motion/react";
-import type { Stats as StatsType } from "@/lib/places";
+import type { Stats as StatsType } from "@/lib/places-types";
 
 function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);

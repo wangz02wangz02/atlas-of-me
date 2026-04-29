@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, type Variants } from "motion/react";
-import type { Place } from "@/lib/places";
+import type { Place } from "@/lib/places-types";
 import AudioPlayer from "./AudioPlayer";
 import PhotoGallery from "./PhotoGallery";
 

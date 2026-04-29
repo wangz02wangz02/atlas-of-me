@@ -7,31 +7,36 @@ import {
   Geographies,
   Geography,
   Marker,
+  Line,
   ZoomableGroup,
 } from "react-simple-maps";
 import { motion, AnimatePresence } from "motion/react";
-import type { Place, Continent } from "@/lib/places";
+import type { Place, Continent } from "@/lib/places-types";
 
 const GEO_URL = "/geo/countries-110m.json";
 
 type Props = {
   places: Place[];
-  /** When provided, only places matching this continent are highlighted; others are dimmed. */
   filterContinent?: Continent | "All";
+  center: [number, number];
+  zoom: number;
+  /** Show the chronological visit-order arcs. */
+  showRoute?: boolean;
+  /** Optionally control panning programmatically. */
+  onMoveEnd?: (pos: { coordinates: [number, number]; zoom: number }) => void;
 };
 
-export default function WorldMap({ places, filterContinent = "All" }: Props) {
+export default function WorldMap({
+  places,
+  filterContinent = "All",
+  center,
+  zoom,
+  showRoute = true,
+  onMoveEnd,
+}: Props) {
   const router = useRouter();
   const [hovered, setHovered] = useState<Place | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-
-  const visible = useMemo(
-    () =>
-      filterContinent === "All"
-        ? places
-        : places.filter((p) => p.continent === filterContinent),
-    [places, filterContinent],
-  );
 
   const dimmed = useMemo(
     () =>
@@ -44,6 +49,23 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
           ),
     [places, filterContinent],
   );
+
+  // Chronologically-ordered legs for the constellation route
+  const legs = useMemo(() => {
+    const chrono = [...places].sort((a, b) =>
+      a.visitedAt.localeCompare(b.visitedAt),
+    );
+    const out: { from: [number, number]; to: [number, number]; key: string }[] =
+      [];
+    for (let i = 1; i < chrono.length; i++) {
+      out.push({
+        from: chrono[i - 1].coordinates,
+        to: chrono[i].coordinates,
+        key: `${chrono[i - 1].slug}->${chrono[i].slug}`,
+      });
+    }
+    return out;
+  }, [places]);
 
   return (
     <div
@@ -62,17 +84,31 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
       >
         <defs>
           <linearGradient id="country-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#161b22" />
-            <stop offset="100%" stopColor="#0f1318" />
+            <stop offset="0%" stopColor="#2a3340" />
+            <stop offset="100%" stopColor="#1a2230" />
+          </linearGradient>
+          <linearGradient id="country-fill-hover" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#3a4554" />
+            <stop offset="100%" stopColor="#2a3340" />
           </linearGradient>
           <radialGradient id="marker-glow">
-            <stop offset="0%" stopColor="#d8a657" stopOpacity="0.7" />
-            <stop offset="60%" stopColor="#d8a657" stopOpacity="0.15" />
+            <stop offset="0%" stopColor="#d8a657" stopOpacity="0.85" />
+            <stop offset="55%" stopColor="#d8a657" stopOpacity="0.18" />
             <stop offset="100%" stopColor="#d8a657" stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        <ZoomableGroup center={[10, 20]} zoom={1} minZoom={1} maxZoom={5}>
+        <ZoomableGroup
+          center={center}
+          zoom={zoom}
+          minZoom={1}
+          maxZoom={6}
+          translateExtent={[
+            [-200, -120],
+            [1180, 640],
+          ]}
+          onMoveEnd={onMoveEnd}
+        >
           <Geographies geography={GEO_URL}>
             {({ geographies }: { geographies: Array<{ rsmKey: string }> }) =>
               geographies.map((geo) => (
@@ -80,17 +116,32 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
                   key={geo.rsmKey}
                   geography={geo}
                   fill="url(#country-fill)"
-                  stroke="#1f2630"
-                  strokeWidth={0.4}
+                  stroke="#3a4554"
+                  strokeWidth={0.5}
                   style={{
                     default: { outline: "none" },
-                    hover: { fill: "#1f2630", outline: "none" },
-                    pressed: { fill: "#1f2630", outline: "none" },
+                    hover: { fill: "url(#country-fill-hover)", outline: "none" },
+                    pressed: { fill: "url(#country-fill-hover)", outline: "none" },
                   }}
                 />
               ))
             }
           </Geographies>
+
+          {showRoute &&
+            legs.map((leg) => (
+              <Line
+                key={leg.key}
+                from={leg.from}
+                to={leg.to}
+                stroke="#d8a657"
+                strokeWidth={0.7}
+                strokeLinecap="round"
+                strokeDasharray="2 4"
+                strokeOpacity={0.45}
+                fill="none"
+              />
+            ))}
 
           {places.map((place) => {
             const isDim = dimmed.has(place.slug);
@@ -113,9 +164,9 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
                     transition: "opacity 300ms ease",
                   }}
                 >
-                  <circle r={14} fill="url(#marker-glow)" />
+                  <circle r={16} fill="url(#marker-glow)" />
                   <circle
-                    r={5}
+                    r={6}
                     className="marker-pulse"
                     fill="none"
                     stroke="#d8a657"
@@ -123,10 +174,10 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
                     style={{ transformOrigin: "center" }}
                   />
                   <circle
-                    r={3.5}
+                    r={4}
                     fill="#d8a657"
                     stroke="#0b0d10"
-                    strokeWidth={1}
+                    strokeWidth={1.2}
                   />
                 </g>
               </Marker>
@@ -135,7 +186,6 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* Hover preview card */}
       <AnimatePresence>
         {hovered && (
           <motion.div
@@ -150,7 +200,7 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
               top: Math.max(pos.y - 10, 0),
             }}
           >
-            <div className="rounded-md border border-ink-3 bg-ink-2/90 px-3 py-2 backdrop-blur-md shadow-2xl">
+            <div className="rounded-md border border-ink-3 bg-ink-2/95 px-3 py-2 shadow-2xl backdrop-blur-md">
               <div className="font-display text-xl leading-none text-bone">
                 {hovered.name}
               </div>
@@ -164,10 +214,6 @@ export default function WorldMap({ places, filterContinent = "All" }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
-
-      <div className="pointer-events-none absolute bottom-3 right-4 font-mono text-[10px] uppercase tracking-[0.2em] text-bone-dim/60">
-        {visible.length}/{places.length} places shown
-      </div>
     </div>
   );
 }
