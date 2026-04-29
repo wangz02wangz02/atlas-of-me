@@ -1,0 +1,102 @@
+@import "tailwindcss";
+
+@theme {
+  /* Cinematic dark palette */
+  --color-ink: #0b0d10;
+  --color-ink-2: #11141a;
+  --color-ink-3: #1a1f28;
+  --color-bone: #ece4d2;
+  --color-bone-dim: #b9b09a;
+  --color-amber: #d8a657;
+  --color-amber-dim: #8a6a3a;
+  --color-rust: #b65a3a;
+  --color-sea: #4f7a82;
+
+  --font-sans: var(--font-sans);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+}
+
+html {
+  background: var(--color-ink);
+  color: var(--color-bone);
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 800px at 80% -10%, rgba(216, 166, 87, 0.06), transparent 60%),
+    radial-gradient(900px 700px at -10% 110%, rgba(79, 122, 130, 0.07), transparent 60%),
+    var(--color-ink);
+  background-attachment: fixed;
+}
+
+/* Subtle film-grain over the whole page */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  opacity: 0.06;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+/* Display headings — retro serif, slightly italicized */
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: -0.01em;
+}
+
+/* Mosaic shimmer for the map countries */
+@keyframes mosaicShift {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 0.75; }
+}
+
+@keyframes pulseRing {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  80% { transform: scale(2.4); opacity: 0; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.marker-pulse {
+  transform-origin: center;
+  animation: pulseRing 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+/* Custom scrollbar (dark) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--color-ink); }
+::-webkit-scrollbar-thumb { background: var(--color-ink-3); border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-amber-dim); }
+
+/* Range input styling for the audio player */
+input[type="range"].audio-scrub {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 2px;
+  background: var(--color-ink-3);
+  border-radius: 999px;
+  outline: none;
+}
+input[type="range"].audio-scrub::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-amber);
+  box-shadow: 0 0 0 4px rgba(216, 166, 87, 0.15);
+  cursor: pointer;
+}
+input[type="range"].audio-scrub::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-amber);
+  box-shadow: 0 0 0 4px rgba(216, 166, 87, 0.15);
+  cursor: pointer;
+}

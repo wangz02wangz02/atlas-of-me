@@ -1,0 +1,17 @@
+{
+  "slug": "marrakech",
+  "name": "Marrakech",
+  "country": "Morocco",
+  "continent": "Africa",
+  "coordinates": [-7.9811, 31.6295],
+  "visitedAt": "2024-04",
+  "year": 2024,
+  "tagline": "All the colors at once.",
+  "journal": "The medina is a maze and a mood. Spice piles taller than my forearm, mopeds threading through gaps that shouldn't exist, and tea poured from above your head into a glass the size of a thimble.\n\nI got lost three times in one afternoon. Each time it ended in a courtyard with a tiled fountain and someone offering me mint tea.\n\nNight in Jemaa el-Fnaa: drum circles, snake charmers, fresh orange juice for one dirham. I stayed until the call to prayer.",
+  "photos": [
+    { "src": "https://picsum.photos/seed/marrakech-medina/1600/900", "alt": "Marrakech medina alley" },
+    { "src": "https://picsum.photos/seed/marrakech-spice/1200/1500", "alt": "Spice market display" },
+    { "src": "https://picsum.photos/seed/marrakech-tile/1400/900", "alt": "Tiled courtyard" }
+  ],
+  "audio": { "durationLabel": "1:54" }
+}

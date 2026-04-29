@@ -1,0 +1,17 @@
+{
+  "slug": "sydney",
+  "name": "Sydney",
+  "country": "Australia",
+  "continent": "Oceania",
+  "coordinates": [151.2093, -33.8688],
+  "visitedAt": "2023-12",
+  "year": 2023,
+  "tagline": "Sun on water, water everywhere.",
+  "journal": "Sydney is a city that keeps stepping aside to let you see the harbor. From every other corner there's a flash of blue.\n\nI swam at Bondi at 7 a.m. and the lifeguards looked impossibly fit. Walked the cliff path to Bronte for the longest, easiest breakfast of the trip.\n\nFerry to Manly at sunset. The Opera House looked like it had been built that morning specifically for the light.",
+  "photos": [
+    { "src": "https://picsum.photos/seed/sydney-harbor/1600/900", "alt": "Sydney harbor at sunset" },
+    { "src": "https://picsum.photos/seed/sydney-bondi/1400/900", "alt": "Bondi beach in the morning" },
+    { "src": "https://picsum.photos/seed/sydney-ferry/1200/1500", "alt": "Ferry crossing the harbor" }
+  ],
+  "audio": { "durationLabel": "1:48" }
+}

@@ -1,0 +1,17 @@
+{
+  "slug": "paris",
+  "name": "Paris",
+  "country": "France",
+  "continent": "Europe",
+  "coordinates": [2.3522, 48.8566],
+  "visitedAt": "2023-06",
+  "year": 2023,
+  "tagline": "Croissant for breakfast, cigarette smoke for atmosphere.",
+  "journal": "I had a list. I tossed the list. Paris is better when you are slightly late for everything you didn't plan.\n\nMornings at a café in the 11th, watching old men argue about something I couldn't follow. Afternoons in the Marais, getting lost on purpose. Evenings on a bridge.\n\nThe Eiffel Tower was smaller than I expected and twice as good.",
+  "photos": [
+    { "src": "https://picsum.photos/seed/paris-cafe/1600/900", "alt": "A Parisian café in the morning" },
+    { "src": "https://picsum.photos/seed/paris-bridge/1200/1500", "alt": "View from a Seine bridge at dusk" },
+    { "src": "https://picsum.photos/seed/paris-roof/1400/900", "alt": "Parisian rooftops" }
+  ],
+  "audio": { "durationLabel": "1:15" }
+}

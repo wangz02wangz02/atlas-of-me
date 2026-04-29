@@ -1,0 +1,17 @@
+{
+  "slug": "new-york",
+  "name": "New York City",
+  "country": "United States",
+  "continent": "North America",
+  "coordinates": [-74.006, 40.7128],
+  "visitedAt": "2024-09",
+  "year": 2024,
+  "tagline": "Loud, fast, and somehow exactly right.",
+  "journal": "New York doesn't owe you anything and it's better that way. I walked from the Lower East Side up to Midtown one Saturday — six hours, no plan, three slices of pizza.\n\nA jazz trio in Washington Square. The 6 train delayed for reasons no one explained. A bookstore that smelled like every bookstore I've ever loved.\n\nI went up to a rooftop at golden hour. The city looked tired and gorgeous and somehow younger than it has any right to be.",
+  "photos": [
+    { "src": "https://picsum.photos/seed/nyc-skyline/1600/900", "alt": "Manhattan skyline at dusk" },
+    { "src": "https://picsum.photos/seed/nyc-subway/1200/1500", "alt": "Subway platform" },
+    { "src": "https://picsum.photos/seed/nyc-bodega/1400/900", "alt": "Corner bodega at night" }
+  ],
+  "audio": { "durationLabel": "1:20" }
+}
