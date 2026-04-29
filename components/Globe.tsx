@@ -10,7 +10,9 @@ import {
   Sphere,
   Marker,
   Line,
+  useMapContext,
 } from "react-simple-maps";
+import { geoCircle } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
 
@@ -18,12 +20,11 @@ const GEO_URL = "/geo/countries-110m.json";
 
 type Props = {
   places: Place[];
-  /** When non-null, the globe orients toward that place. */
   focusedSlug?: string | null;
-  /** Auto-rotate when nothing else is going on. */
   autoRotate?: boolean;
-  /** Show the chronological visit-order arcs across the sphere. */
   showRoute?: boolean;
+  showStars?: boolean;
+  showTerminator?: boolean;
   size?: number;
 };
 
@@ -33,8 +34,6 @@ function isVisible(
   coord: [number, number],
   rotate: [number, number, number],
 ): boolean {
-  // d3-geo orthographic looks at [-lambda, -phi]. A point is on the visible
-  // hemisphere when the cosine of the angular distance to that look-axis > 0.
   const [lon, lat] = coord;
   const [lambda, phi] = rotate;
   const cx = -lambda * TO_RAD;
@@ -47,24 +46,78 @@ function isVisible(
   return cosD > 0.05;
 }
 
-export default function Globe({
+/** Where the sun is overhead right now, in [longitude, latitude]. */
+function subsolarPoint(date: Date): [number, number] {
+  const start = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - start) / 86400000);
+  const decl =
+    23.45 * Math.sin(((360 * (dayOfYear - 81)) / 365) * TO_RAD);
+  const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60;
+  const lon = -((utcHours - 12) * 15);
+  return [lon, decl];
+}
+
+function NightTerminator({ now }: { now: number }) {
+  const { path } = useMapContext() as { path: (g: unknown) => string | null };
+  const d = useMemo(() => {
+    const [sunLon, sunLat] = subsolarPoint(new Date(now));
+    const circle = geoCircle()
+      .center([sunLon + 180, -sunLat])
+      .radius(90);
+    return path(circle());
+  }, [path, now]);
+  if (!d) return null;
+  return (
+    <g pointerEvents="none">
+      <path d={d} fill="rgba(8, 11, 20, 0.55)" />
+      <path
+        d={d}
+        fill="none"
+        stroke="rgba(216, 166, 87, 0.18)"
+        strokeWidth={0.8}
+      />
+    </g>
+  );
+}
+
+function GlobeImpl({
   places,
   focusedSlug = null,
   autoRotate = true,
   showRoute = true,
+  showStars = true,
+  showTerminator = true,
   size = 520,
 }: Props) {
   const router = useRouter();
   const [rotate, setRotate] = useState<[number, number, number]>([-15, -25, 0]);
   const [hovered, setHovered] = useState<Place | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Recompute night side every minute — date is stable enough for 60s.
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const dragging = useRef(false);
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
   const interactingAt = useRef<number>(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Auto-rotation loop
+  // Star positions — generated once on mount, deterministic for this session.
+  const stars = useMemo(
+    () =>
+      Array.from({ length: 90 }, () => ({
+        x: Math.random() * 100,
+        y: Math.random() * 100,
+        s: Math.random() * 1.1 + 0.3,
+        o: Math.random() * 0.7 + 0.15,
+      })),
+    [],
+  );
+
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     if (!autoRotate) return;
     let raf: number;
@@ -72,7 +125,6 @@ export default function Globe({
     const tick = (now: number) => {
       const dt = now - last;
       last = now;
-      // Pause briefly after user interaction
       const idle = now - interactingAt.current > 600;
       if (!dragging.current && idle && !hovered) {
         setRotate(([l, p, g]) => [(l + dt * 0.012) % 360, p, g]);
@@ -83,7 +135,6 @@ export default function Globe({
     return () => cancelAnimationFrame(raf);
   }, [autoRotate, hovered]);
 
-  // Animate to a focused place
   useEffect(() => {
     if (!focusedSlug) return;
     const place = places.find((p) => p.slug === focusedSlug);
@@ -103,7 +154,6 @@ export default function Globe({
     const step = () => {
       const t = Math.min(1, (performance.now() - t0) / dur);
       const k = ease(t);
-      // Take the shortest path for lambda
       let dl = target[0] - start[0];
       while (dl > 180) dl -= 360;
       while (dl < -180) dl += 360;
@@ -185,6 +235,34 @@ export default function Globe({
       onPointerCancel={onPointerUp}
       onPointerLeave={onPointerUp}
     >
+      {/* Star field — sits behind the globe, simulates space. */}
+      {showStars && (
+        <div className="pointer-events-none absolute inset-0">
+          {stars.map((s, i) => (
+            <span
+              key={i}
+              className="absolute rounded-full bg-bone"
+              style={{
+                left: `${s.x}%`,
+                top: `${s.y}%`,
+                width: `${s.s}px`,
+                height: `${s.s}px`,
+                opacity: s.o,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Outer atmosphere/halo */}
+      <div
+        className="pointer-events-none absolute inset-0 rounded-full"
+        style={{
+          background:
+            "radial-gradient(circle at 50% 50%, rgba(216,166,87,0.10) 47%, rgba(216,166,87,0.18) 49%, rgba(216,166,87,0) 56%)",
+        }}
+      />
+
       <ComposableMap
         projection="geoOrthographic"
         projectionConfig={{ scale: size / 2 - 8, rotate }}
@@ -197,42 +275,38 @@ export default function Globe({
         }}
       >
         <defs>
-          <radialGradient id="ocean" cx="50%" cy="42%" r="60%">
-            <stop offset="0%" stopColor="#1b2433" />
-            <stop offset="80%" stopColor="#0e131c" />
-            <stop offset="100%" stopColor="#0b0d10" />
+          {/* Vintage atlas palette: deep navy seas, warm sand land. */}
+          <radialGradient id="ocean" cx="38%" cy="34%" r="72%">
+            <stop offset="0%" stopColor="#1e4566" />
+            <stop offset="55%" stopColor="#0e2e4a" />
+            <stop offset="100%" stopColor="#061525" />
           </radialGradient>
-          <radialGradient id="rim" cx="50%" cy="50%" r="50%">
-            <stop offset="92%" stopColor="#d8a657" stopOpacity="0" />
-            <stop offset="98%" stopColor="#d8a657" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#d8a657" stopOpacity="0" />
-          </radialGradient>
-          <linearGradient id="globe-country" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#384352" />
-            <stop offset="100%" stopColor="#202935" />
+          <linearGradient id="land" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#d6b483" />
+            <stop offset="100%" stopColor="#9a7546" />
+          </linearGradient>
+          <linearGradient id="land-hover" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#e9c89a" />
+            <stop offset="100%" stopColor="#b18a55" />
           </linearGradient>
           <radialGradient id="globe-marker">
-            <stop offset="0%" stopColor="#d8a657" stopOpacity="0.85" />
-            <stop offset="55%" stopColor="#d8a657" stopOpacity="0.15" />
-            <stop offset="100%" stopColor="#d8a657" stopOpacity="0" />
+            <stop offset="0%" stopColor="#ff8a4a" stopOpacity="0.95" />
+            <stop offset="55%" stopColor="#ff8a4a" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#ff8a4a" stopOpacity="0" />
           </radialGradient>
         </defs>
 
-        {/* Ocean */}
         <Sphere
           id="globe-sphere"
           fill="url(#ocean)"
-          stroke="#3a4554"
-          strokeWidth={0.6}
+          stroke="#9a7546"
+          strokeWidth={0.8}
         />
-        {/* Latitude/longitude grid */}
-        <Graticule stroke="#2a3340" strokeWidth={0.4} step={[15, 15]} />
-        {/* Rim glow */}
-        <Sphere
-          id="globe-rim"
-          fill="url(#rim)"
-          stroke="transparent"
-          strokeWidth={0}
+
+        <Graticule
+          stroke="rgba(216, 166, 87, 0.10)"
+          strokeWidth={0.4}
+          step={[15, 15]}
         />
 
         <Geographies geography={GEO_URL}>
@@ -241,18 +315,20 @@ export default function Globe({
               <Geography
                 key={geo.rsmKey}
                 geography={geo}
-                fill="url(#globe-country)"
-                stroke="#475263"
+                fill="url(#land)"
+                stroke="#6b4d2c"
                 strokeWidth={0.4}
                 style={{
                   default: { outline: "none" },
-                  hover: { fill: "#4a5667", outline: "none" },
-                  pressed: { fill: "#4a5667", outline: "none" },
+                  hover: { fill: "url(#land-hover)", outline: "none" },
+                  pressed: { fill: "url(#land-hover)", outline: "none" },
                 }}
               />
             ))
           }
         </Geographies>
+
+        {showTerminator && <NightTerminator now={nowMs} />}
 
         {showRoute &&
           legs.map((leg) => (
@@ -260,9 +336,9 @@ export default function Globe({
               key={leg.key}
               from={leg.from}
               to={leg.to}
-              stroke="#d8a657"
-              strokeWidth={0.8}
-              strokeOpacity={0.55}
+              stroke="#ff8a4a"
+              strokeWidth={1}
+              strokeOpacity={0.6}
               strokeLinecap="round"
               strokeDasharray="2 4"
               fill="none"
@@ -291,15 +367,15 @@ export default function Globe({
                   r={5}
                   className="marker-pulse"
                   fill="none"
-                  stroke="#d8a657"
+                  stroke="#ff8a4a"
                   strokeWidth={1}
                   style={{ transformOrigin: "center" }}
                 />
                 <circle
-                  r={3.5}
-                  fill="#d8a657"
+                  r={3.6}
+                  fill="#ff8a4a"
                   stroke="#0b0d10"
-                  strokeWidth={1}
+                  strokeWidth={1.2}
                 />
               </g>
             </Marker>
@@ -334,4 +410,35 @@ export default function Globe({
       </AnimatePresence>
     </div>
   );
+}
+
+/**
+ * Mount-gated wrapper. The d3-geo orthographic path generation produced a
+ * subpixel-different `d` attribute between SSR and client hydration, which
+ * surfaced as a hydration error on `<clipPath id="globe-sphere">`. Render
+ * client-only — the globe is fully interactive (rAF, drag, etc.) anyway.
+ */
+export default function Globe(props: Props) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) {
+    return (
+      <div
+        className="relative w-full"
+        style={{ aspectRatio: "1 / 1", maxWidth: props.size ?? 520 }}
+        aria-hidden
+      >
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background:
+              "radial-gradient(circle at 38% 34%, #1e4566 0%, #0e2e4a 55%, #061525 100%)",
+            opacity: 0.7,
+          }}
+        />
+      </div>
+    );
+  }
+  return <GlobeImpl {...props} />;
 }
