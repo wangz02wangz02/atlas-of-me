@@ -7,7 +7,7 @@ export type Continent =
   | "Oceania"
   | "Antarctica";
 
-export type TransportMode = "flight" | "train" | "car" | "ship";
+export type TransportMode = "flight" | "train" | "car" | "ship" | "bus";
 
 export type Place = {
   slug: string;

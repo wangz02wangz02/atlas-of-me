@@ -105,6 +105,7 @@ export function getStats(): Stats {
     train: 0,
     car: 0,
     ship: 0,
+    bus: 0,
   };
   let totalDistanceKm = 0;
   for (const leg of LEGS) {
@@ -138,4 +139,50 @@ export function getResolvedLegs(): Array<
     fromCoord: CITIES[leg.from].coordinates,
     toCoord: CITIES[leg.to].coordinates,
   }));
+}
+
+export type Connection = {
+  stop: number;
+  arrival: { fromSlug: string; mode: TransportMode } | null;
+  departure: { toSlug: string; mode: TransportMode } | null;
+};
+
+/**
+ * For each visit to a city, returns the leg in (how I got there) and
+ * leg out (how I left). Useful for detail-page "connections" panels.
+ */
+export function getConnectionsForCity(slug: string): Connection[] {
+  const place = getPlace(slug);
+  if (!place) return [];
+  return place.stops.map((stop) => {
+    const arrLeg = stop > 1 ? LEGS[stop - 2] : null;
+    const depLeg = stop <= LEGS.length ? LEGS[stop - 1] : null;
+    return {
+      stop,
+      arrival: arrLeg
+        ? { fromSlug: arrLeg.from, mode: arrLeg.mode }
+        : null,
+      departure: depLeg
+        ? { toSlug: depLeg.to, mode: depLeg.mode }
+        : null,
+    };
+  });
+}
+
+/** Previous/next neighbor cities for the city's first visit. */
+export function getNeighborsForCity(
+  slug: string,
+): { prev: string | null; next: string | null; prevMode: TransportMode | null; nextMode: TransportMode | null } {
+  const place = getPlace(slug);
+  if (!place || place.stops.length === 0)
+    return { prev: null, next: null, prevMode: null, nextMode: null };
+  const firstStop = place.stops[0];
+  const prevLeg = firstStop > 1 ? LEGS[firstStop - 2] : null;
+  const nextLeg = firstStop <= LEGS.length ? LEGS[firstStop - 1] : null;
+  return {
+    prev: prevLeg?.from ?? null,
+    next: nextLeg?.to ?? null,
+    prevMode: prevLeg?.mode ?? null,
+    nextMode: nextLeg?.mode ?? null,
+  };
 }

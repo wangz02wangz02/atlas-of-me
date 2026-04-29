@@ -9,6 +9,7 @@ const MODE_GLYPH: Record<TransportMode, string> = {
   train: "▤",
   car: "▣",
   ship: "≋",
+  bus: "▦",
 };
 
 type Props = {

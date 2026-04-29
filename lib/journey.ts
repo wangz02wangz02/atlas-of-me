@@ -4,9 +4,9 @@
  * derived Place list.
  */
 
-import type { Continent } from "./places-types";
+import type { Continent, TransportMode } from "./places-types";
 
-export type TransportMode = "flight" | "train" | "car" | "ship";
+export type { TransportMode } from "./places-types";
 
 export type City = {
   slug: string;
@@ -33,10 +33,16 @@ export const MODE_STYLE: Record<
   TransportMode,
   { label: string; color: string; dash: string; width: number }
 > = {
-  flight: { label: "Flight", color: "#ff8a4a", dash: "2 4", width: 0.8 },
-  train: { label: "Train", color: "#7ad1a1", dash: "0", width: 1.1 },
-  car: { label: "Drive", color: "#e8c46a", dash: "1 3", width: 1 },
-  ship: { label: "Ship", color: "#74c0e6", dash: "4 2 1 2", width: 1.1 },
+  // Flight: warm orange, broken / "dotted-dashed" — visually flighty.
+  flight: { label: "Flight", color: "#ff8a4a", dash: "5 4", width: 0.8 },
+  // Train: cool cyan, thick & solid — reads as a steel rail.
+  train: { label: "Train", color: "#4ec9d8", dash: "0", width: 1.7 },
+  // Drive: warm yellow, fine dotted.
+  car: { label: "Drive", color: "#e8c46a", dash: "1 2", width: 1.1 },
+  // Ship: pale blue, dot-dash.
+  ship: { label: "Ship", color: "#74c0e6", dash: "4 2 1 2", width: 1.3 },
+  // Bus: violet, long dash.
+  bus: { label: "Bus", color: "#b08fd9", dash: "6 3", width: 1.3 },
 };
 
 const PARIS_JOURNAL = `I had a list. I tossed the list. Paris is better when you are slightly late for everything you didn't plan.
@@ -61,7 +67,7 @@ export const CITIES: Record<string, City> = {
   "new-york": {
     slug: "new-york",
     name: "New York City",
-    country: "United States",
+    country: "United States of America",
     countryCode: "US",
     continent: "North America",
     coordinates: [-74.006, 40.7128],
@@ -204,7 +210,7 @@ export const CITIES: Record<string, City> = {
   prague: {
     slug: "prague",
     name: "Prague",
-    country: "Czech Republic",
+    country: "Czechia",
     countryCode: "CZ",
     continent: "Europe",
     coordinates: [14.4378, 50.0755],
@@ -501,7 +507,7 @@ export const CITIES: Record<string, City> = {
   istanbul: {
     slug: "istanbul",
     name: "Istanbul",
-    country: "Türkiye",
+    country: "Turkey",
     countryCode: "TR",
     continent: "Europe",
     coordinates: [28.9784, 41.0082],
@@ -706,6 +712,248 @@ export const CITIES: Record<string, City> = {
     journal:
       "Borough Market on a Saturday — every cuisine, all at once. The British Museum's Reading Room, free, world-class, a quiet miracle.",
   },
+  "las-vegas": {
+    slug: "las-vegas",
+    name: "Las Vegas",
+    country: "United States of America",
+    countryCode: "US",
+    continent: "North America",
+    coordinates: [-115.1391, 36.1699],
+    tagline: "A desert that turned itself into a stage.",
+    journal:
+      "The strip exists to be photographed. Twenty minutes off it, the Mojave begins, and you're suddenly in a different country with the same area code.",
+  },
+  "san-francisco": {
+    slug: "san-francisco",
+    name: "San Francisco",
+    country: "United States of America",
+    countryCode: "US",
+    continent: "North America",
+    coordinates: [-122.4194, 37.7749],
+    tagline: "Hills, fog, the smell of sourdough at 6 a.m.",
+    journal:
+      "Cable cars feel more functional than nostalgic. Mission burritos for lunch, oysters at sundown. The Golden Gate from the Marin side at golden hour, rust-orange against blue.",
+  },
+  chicago: {
+    slug: "chicago",
+    name: "Chicago",
+    country: "United States of America",
+    countryCode: "US",
+    continent: "North America",
+    coordinates: [-87.6298, 41.8781],
+    tagline: "Wind, deep-dish, a skyline that knows it's earned.",
+    journal:
+      "An L train rumbling overhead, the lake doing its inland-sea thing. Architecture by river boat — every building has a name and a date and somebody's ego attached.",
+  },
+  taipei: {
+    slug: "taipei",
+    name: "Taipei",
+    country: "Taiwan",
+    countryCode: "TW",
+    continent: "Asia",
+    coordinates: [121.5654, 25.033],
+    tagline: "Night markets, oolong, scooters in formation.",
+    journal:
+      "Shilin Night Market — beef noodle soup at midnight, then a foot massage. Taipei 101 lit up like a chandelier you can see from anywhere.",
+  },
+  shanghai: {
+    slug: "shanghai",
+    name: "Shanghai",
+    country: "China",
+    countryCode: "CN",
+    continent: "Asia",
+    coordinates: [121.4737, 31.2304],
+    tagline: "The Bund at dusk, Pudong returning the look.",
+    journal:
+      "The French Concession's plane trees, then crossing the river to Pudong's neon. A xiaolongbao that ruined every other dumpling I've eaten since.",
+  },
+  beijing: {
+    slug: "beijing",
+    name: "Beijing",
+    country: "China",
+    countryCode: "CN",
+    continent: "Asia",
+    coordinates: [116.4074, 39.9042],
+    tagline: "Tiananmen at dawn, the wall on a clear day.",
+    journal:
+      "The Forbidden City is bigger than you can believe; you walk for an hour and you're not done. Hutongs with bird cages hung by the door, taxi drivers who know exactly where to stop.",
+  },
+  washington: {
+    slug: "washington",
+    name: "Washington, D.C.",
+    country: "United States of America",
+    countryCode: "US",
+    continent: "North America",
+    coordinates: [-77.0369, 38.9072],
+    tagline: "Marble and lobbyists. Cherry blossoms in April.",
+    journal:
+      "The Mall, free museums, marble that's seen everything. Cherry blossoms turning the Tidal Basin pink for one week a year, then it's over.",
+  },
+  reykjavik: {
+    slug: "reykjavik",
+    name: "Reykjavík",
+    country: "Iceland",
+    countryCode: "IS",
+    continent: "Europe",
+    coordinates: [-21.9426, 64.1466],
+    tagline: "Turf-roof houses, geothermal pools, sun that forgot to set.",
+    journal:
+      "Summer light that didn't quit until 2 a.m. The Blue Lagoon — overhyped, still good. Hallgrímskirkja's silhouette over the colored roofs.",
+  },
+  miami: {
+    slug: "miami",
+    name: "Miami",
+    country: "United States of America",
+    countryCode: "US",
+    continent: "North America",
+    coordinates: [-80.1918, 25.7617],
+    tagline: "Pastel deco, salt air, neon off slow-moving cars.",
+    journal:
+      "South Beach at golden hour, Art Deco hotels in pastel rows. Cuban coffee at 7 a.m., still feeling it at noon.",
+  },
+  cancun: {
+    slug: "cancun",
+    name: "Cancún",
+    country: "Mexico",
+    countryCode: "MX",
+    continent: "North America",
+    coordinates: [-86.8515, 21.1619],
+    tagline: "Lagoon side and ocean side, choose your shade of turquoise.",
+    journal:
+      "The hotel zone is unapologetically what it is. Tulum a couple of hours south makes up for it; cenotes deeper south make up for everything.",
+  },
+  toronto: {
+    slug: "toronto",
+    name: "Toronto",
+    country: "Canada",
+    countryCode: "CA",
+    continent: "North America",
+    coordinates: [-79.3832, 43.6532],
+    tagline: "Politely the most multicultural city in the world.",
+    journal:
+      "Kensington Market on a Saturday — every cuisine, every street art style, all at once. The CN Tower is taller in person and the glass floor is exactly as scary as you think.",
+  },
+  dublin: {
+    slug: "dublin",
+    name: "Dublin",
+    country: "Ireland",
+    countryCode: "IE",
+    continent: "Europe",
+    coordinates: [-6.2603, 53.3498],
+    tagline: "Pubs that double as living rooms; Joyce on every other street sign.",
+    journal:
+      "Trinity College Library's Long Room is one of the most beautiful rooms on Earth. A Guinness in Dublin tastes different — placebo or not, it does.",
+  },
+  belfast: {
+    slug: "belfast",
+    name: "Belfast",
+    country: "United Kingdom",
+    countryCode: "GB",
+    continent: "Europe",
+    coordinates: [-5.9301, 54.5973],
+    tagline: "Murals of memory; the Troubles are recent enough to whisper.",
+    journal:
+      "Black-taxi tour through the Falls and Shankill Roads, both sides of the same wall. The Titanic Quarter is more impressive than I expected, and the building shaped like a ship's prow makes a quiet point.",
+  },
+  inverness: {
+    slug: "inverness",
+    name: "Inverness",
+    country: "United Kingdom",
+    countryCode: "GB",
+    continent: "Europe",
+    coordinates: [-4.2244, 57.4778],
+    tagline: "Highlands at the doorstep, Loch Ness in monosyllables.",
+    journal:
+      "Pictish stones in farmer's fields. Loch Ness in mist — no monster, plenty of atmosphere. A whisky tasting where the third dram explains the previous two.",
+  },
+  bogota: {
+    slug: "bogota",
+    name: "Bogotá",
+    country: "Colombia",
+    countryCode: "CO",
+    continent: "South America",
+    coordinates: [-74.0721, 4.711],
+    tagline: "The Andes change their mind every twenty minutes.",
+    journal:
+      "La Candelaria's painted walls, the Gold Museum that earns the name. Salsa lessons on a Tuesday. Monserrate at sunset for a city that doesn't end.",
+  },
+  lima: {
+    slug: "lima",
+    name: "Lima",
+    country: "Peru",
+    countryCode: "PE",
+    continent: "South America",
+    coordinates: [-77.0428, -12.0464],
+    tagline: "Pisco sour, ceviche, the Pacific doing its grey thing.",
+    journal:
+      "Miraflores cliffs over the Pacific, paragliders riding the updraft. Barranco at night for bohemian bars and graffiti. The food in this city is its own argument for being here.",
+  },
+  cusco: {
+    slug: "cusco",
+    name: "Cusco",
+    country: "Peru",
+    countryCode: "PE",
+    continent: "South America",
+    coordinates: [-71.9675, -13.5319],
+    tagline: "Air thinner than expected, kindness thicker.",
+    journal:
+      "11,000 feet — the first morning I climbed three flights of stairs and had to sit down. The locals smiled and handed me coca tea. Inca masonry that you couldn't slide a knife between, six hundred years on.",
+  },
+  panama: {
+    slug: "panama",
+    name: "Panama City",
+    country: "Panama",
+    countryCode: "PA",
+    continent: "North America",
+    coordinates: [-79.5167, 8.9824],
+    tagline: "A canal you can walk along while a ship walks past.",
+    journal:
+      "Casco Viejo — colonial, tiled, jacaranda overhead — versus a downtown of skyscrapers across the bay. The canal does its slow theater all day; you don't get tired of it.",
+  },
+  "mexico-city": {
+    slug: "mexico-city",
+    name: "Mexico City",
+    country: "Mexico",
+    countryCode: "MX",
+    continent: "North America",
+    coordinates: [-99.1332, 19.4326],
+    tagline: "Bigger than you remember, kinder than you'd guess.",
+    journal:
+      "Roma Norte for tacos al pastor, Coyoacán for Frida, Chapultepec for breath. The altitude doesn't tell you it's there until it does. Mariachis at sundown in Garibaldi.",
+  },
+  quebec: {
+    slug: "quebec",
+    name: "Québec City",
+    country: "Canada",
+    countryCode: "CA",
+    continent: "North America",
+    coordinates: [-71.208, 46.8139],
+    tagline: "Stone walls, French windows, the only walled city north of Mexico.",
+    journal:
+      "Cobblestoned old town, Château Frontenac on its bluff, the St. Lawrence wide as a sea. Poutine where it was invented, no contest.",
+  },
+  ottawa: {
+    slug: "ottawa",
+    name: "Ottawa",
+    country: "Canada",
+    countryCode: "CA",
+    continent: "North America",
+    coordinates: [-75.6972, 45.4215],
+    tagline: "A capital that takes its winter very seriously.",
+    journal:
+      "The Rideau Canal turns into the world's longest skating rink in winter. Parliament in copper-roofed sandstone. The art gallery's giant spider sculpture is worth the detour.",
+  },
+  montreal: {
+    slug: "montreal",
+    name: "Montréal",
+    country: "Canada",
+    countryCode: "CA",
+    continent: "North America",
+    coordinates: [-73.5673, 45.5017],
+    tagline: "Two languages and a sense of humor in both.",
+    journal:
+      "The Plateau on a summer evening — bagels, fries, a guy busking to a crowd of thirty. Mont-Royal at sunset looks back at the city. A sandwich called smoked-meat that lives up to the legend.",
+  },
 };
 
 export const LEGS: Leg[] = [
@@ -786,6 +1034,43 @@ export const LEGS: Leg[] = [
   { index: 75, from: "yerevan", to: "paris", mode: "flight" },
   { index: 76, from: "paris", to: "london", mode: "flight" },
   { index: 77, from: "london", to: "new-york", mode: "flight" },
+  { index: 78, from: "new-york", to: "las-vegas", mode: "flight" },
+  { index: 79, from: "las-vegas", to: "san-francisco", mode: "flight" },
+  { index: 80, from: "san-francisco", to: "new-york", mode: "flight" },
+  { index: 81, from: "new-york", to: "chicago", mode: "flight" },
+  { index: 82, from: "chicago", to: "taipei", mode: "flight" },
+  { index: 83, from: "taipei", to: "shanghai", mode: "flight" },
+  { index: 84, from: "shanghai", to: "beijing", mode: "flight" },
+  { index: 85, from: "beijing", to: "washington", mode: "flight" },
+  { index: 86, from: "washington", to: "chicago", mode: "flight" },
+  { index: 87, from: "chicago", to: "reykjavik", mode: "flight" },
+  { index: 88, from: "reykjavik", to: "chicago", mode: "flight" },
+  { index: 89, from: "chicago", to: "miami", mode: "flight" },
+  { index: 90, from: "miami", to: "chicago", mode: "flight" },
+  { index: 91, from: "chicago", to: "new-york", mode: "flight" },
+  { index: 92, from: "new-york", to: "chicago", mode: "flight" },
+  { index: 93, from: "chicago", to: "cancun", mode: "flight" },
+  { index: 94, from: "cancun", to: "chicago", mode: "flight" },
+  { index: 95, from: "chicago", to: "toronto", mode: "flight" },
+  { index: 96, from: "toronto", to: "london", mode: "flight" },
+  { index: 97, from: "london", to: "dublin", mode: "flight" },
+  { index: 98, from: "dublin", to: "belfast", mode: "train" },
+  { index: 99, from: "belfast", to: "paris", mode: "flight" },
+  { index: 100, from: "paris", to: "london", mode: "flight" },
+  { index: 101, from: "london", to: "inverness", mode: "flight" },
+  { index: 102, from: "inverness", to: "london", mode: "flight" },
+  { index: 103, from: "london", to: "madrid", mode: "flight" },
+  { index: 104, from: "madrid", to: "bogota", mode: "flight" },
+  { index: 105, from: "bogota", to: "lima", mode: "flight" },
+  { index: 106, from: "lima", to: "cusco", mode: "flight" },
+  { index: 107, from: "cusco", to: "lima", mode: "flight" },
+  { index: 108, from: "lima", to: "panama", mode: "flight" },
+  { index: 109, from: "panama", to: "mexico-city", mode: "flight" },
+  { index: 110, from: "mexico-city", to: "chicago", mode: "flight" },
+  { index: 111, from: "chicago", to: "quebec", mode: "flight" },
+  { index: 112, from: "quebec", to: "ottawa", mode: "train" },
+  { index: 113, from: "ottawa", to: "montreal", mode: "bus" },
+  { index: 114, from: "montreal", to: "chicago", mode: "flight" },
 ];
 
 /** All stops in order, including the starting city (index 0). */

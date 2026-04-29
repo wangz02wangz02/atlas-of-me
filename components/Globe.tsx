@@ -26,7 +26,6 @@ type Props = {
   showRoute?: boolean;
   showStars?: boolean;
   showTerminator?: boolean;
-  /** Show only legs up to this stop number (for the journey scrubber). */
   legsThrough?: number | null;
   size?: number;
 };
@@ -95,7 +94,9 @@ function GlobeImpl({
 }: Props) {
   const router = useRouter();
   const [rotate, setRotate] = useState<[number, number, number]>([-15, -25, 0]);
+  const [zoom, setZoom] = useState<number>(1);
   const [hovered, setHovered] = useState<Place | null>(null);
+  const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -183,8 +184,8 @@ function GlobeImpl({
     const dy = e.clientY - lastPointer.current.y;
     lastPointer.current = { x: e.clientX, y: e.clientY };
     setRotate(([l, p, g]) => {
-      const nl = (l + dx * 0.4) % 360;
-      const np = Math.max(-89, Math.min(89, p - dy * 0.4));
+      const nl = (l + (dx * 0.4) / zoom) % 360;
+      const np = Math.max(-89, Math.min(89, p - (dy * 0.4) / zoom));
       return [nl, np, g];
     });
     interactingAt.current = performance.now();
@@ -192,6 +193,11 @@ function GlobeImpl({
   const onPointerUp = () => {
     dragging.current = false;
     lastPointer.current = null;
+    interactingAt.current = performance.now();
+  };
+  const onWheel = (e: React.WheelEvent) => {
+    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    setZoom((z) => Math.max(0.7, Math.min(4, z * factor)));
     interactingAt.current = performance.now();
   };
 
@@ -210,6 +216,8 @@ function GlobeImpl({
     setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   };
 
+  const projectionScale = (size / 2 - 8) * zoom;
+
   return (
     <div
       ref={wrapperRef}
@@ -223,6 +231,7 @@ function GlobeImpl({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onPointerLeave={onPointerUp}
+      onWheel={onWheel}
     >
       {showStars && (
         <div className="pointer-events-none absolute inset-0">
@@ -252,7 +261,7 @@ function GlobeImpl({
 
       <ComposableMap
         projection="geoOrthographic"
-        projectionConfig={{ scale: size / 2 - 8, rotate }}
+        projectionConfig={{ scale: projectionScale, rotate }}
         width={size}
         height={size}
         style={{
@@ -310,19 +319,24 @@ function GlobeImpl({
             }>;
           }) =>
             geographies.map((geo) => {
-              const isHighlighted =
+              const name = geo.properties?.name ?? "";
+              const isMarkerHi =
                 hovered != null &&
-                geo.properties?.name?.toLowerCase() ===
-                  hovered.country.toLowerCase();
+                name.toLowerCase() === hovered.country.toLowerCase();
+              const isCountryHi =
+                hoveredCountry !== null && name === hoveredCountry && !hovered;
+              const isHi = isMarkerHi || isCountryHi;
               return (
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
-                  fill={
-                    isHighlighted ? "url(#land-highlight)" : "url(#land)"
+                  onMouseEnter={() => setHoveredCountry(name)}
+                  onMouseLeave={() =>
+                    setHoveredCountry((c) => (c === name ? null : c))
                   }
-                  stroke={isHighlighted ? "#ff8a4a" : "#6b4d2c"}
-                  strokeWidth={isHighlighted ? 0.7 : 0.4}
+                  fill={isHi ? "url(#land-highlight)" : "url(#land)"}
+                  stroke={isHi ? "#ff8a4a" : "#6b4d2c"}
+                  strokeWidth={isHi ? 0.7 : 0.4}
                   style={{
                     default: { outline: "none", transition: "fill 200ms" },
                     hover: {
@@ -353,7 +367,7 @@ function GlobeImpl({
                 to={leg.toCoord}
                 stroke={style.color}
                 strokeWidth={isCurrent ? style.width + 1 : style.width}
-                strokeOpacity={isCurrent ? 0.95 : 0.6}
+                strokeOpacity={isCurrent ? 0.95 : 0.65}
                 strokeLinecap="round"
                 strokeDasharray={style.dash === "0" ? undefined : style.dash}
                 fill="none"
@@ -380,22 +394,14 @@ function GlobeImpl({
             >
               <g>
                 <circle
-                  r={isHub ? 20 : 14}
+                  r={isHub ? 16 : 10}
                   fill={`url(#${isHub ? "globe-marker-paris" : "globe-marker"})`}
                 />
                 <circle
-                  r={isHub ? 7 : 5}
-                  className="marker-pulse"
-                  fill="none"
-                  stroke="#ff8a4a"
-                  strokeWidth={isHub ? 1.4 : 1}
-                  style={{ transformOrigin: "center" }}
-                />
-                <circle
-                  r={isHub ? 5 : 3.6}
+                  r={isHub ? 5 : 3.4}
                   fill={isHub ? "#fff1c2" : "#ff8a4a"}
                   stroke="#0b0d10"
-                  strokeWidth={1.2}
+                  strokeWidth={1}
                 />
               </g>
             </Marker>
@@ -406,7 +412,7 @@ function GlobeImpl({
       <AnimatePresence>
         {hovered && (
           <motion.div
-            key={hovered.slug}
+            key={`m-${hovered.slug}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
@@ -428,6 +434,32 @@ function GlobeImpl({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {hoveredCountry && !hovered && (
+          <motion.div
+            key={`c-${hoveredCountry}`}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="pointer-events-none absolute z-10 hidden md:block"
+            style={{
+              left: Math.min(pos.x + 14, 9999),
+              top: Math.max(pos.y + 12, 0),
+            }}
+          >
+            <div className="rounded-sm border border-ink-3 bg-ink-2/90 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-bone-dim shadow-md backdrop-blur-md">
+              {hoveredCountry}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Globe zoom indicator */}
+      <div className="pointer-events-none absolute right-2 top-2 rounded-sm border border-ink-3 bg-ink-2/70 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-bone-dim/80 backdrop-blur">
+        {zoom.toFixed(1)}× · scroll to zoom
+      </div>
     </div>
   );
 }

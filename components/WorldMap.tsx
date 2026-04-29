@@ -22,7 +22,6 @@ type Props = {
   center: [number, number];
   zoom: number;
   showRoute?: boolean;
-  /** Highlight all legs up to (and including) this stop number — for the scrubber. */
   legsThrough?: number | null;
   onMoveEnd?: (pos: { coordinates: [number, number]; zoom: number }) => void;
 };
@@ -40,6 +39,7 @@ export default function WorldMap({
 }: Props) {
   const router = useRouter();
   const [hovered, setHovered] = useState<Place | null>(null);
+  const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const dimmed = useMemo(
@@ -56,7 +56,6 @@ export default function WorldMap({
 
   const legs = useMemo(() => getResolvedLegs(), []);
   const visibleLegCount = legsThrough ?? legs.length;
-  const hoveredCountryCode = hovered?.countryCode ?? null;
 
   return (
     <div
@@ -88,7 +87,7 @@ export default function WorldMap({
             <stop offset="100%" stopColor="#d8a657" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="paris-glow">
-            <stop offset="0%" stopColor="#ff8a4a" stopOpacity="0.95" />
+            <stop offset="0%" stopColor="#fff1c2" stopOpacity="0.95" />
             <stop offset="55%" stopColor="#ff8a4a" stopOpacity="0.25" />
             <stop offset="100%" stopColor="#ff8a4a" stopOpacity="0" />
           </radialGradient>
@@ -98,7 +97,7 @@ export default function WorldMap({
           center={center}
           zoom={zoom}
           minZoom={1}
-          maxZoom={6}
+          maxZoom={12}
           translateExtent={[
             [-200, -120],
             [1180, 640],
@@ -111,28 +110,34 @@ export default function WorldMap({
             }: {
               geographies: Array<{
                 rsmKey: string;
-                id?: string;
                 properties: { name: string };
               }>;
             }) =>
               geographies.map((geo) => {
-                // The world-atlas TopoJSON stores numeric ISO codes as `id`.
-                // We highlight by country *name* match (less brittle for our use).
-                const isHighlighted =
+                const name = geo.properties?.name ?? "";
+                const isMarkerHighlight =
                   hovered != null &&
-                  geo.properties?.name?.toLowerCase() ===
-                    hovered.country.toLowerCase();
+                  name.toLowerCase() === hovered.country.toLowerCase();
+                const isCountryHover =
+                  hoveredCountry !== null &&
+                  name === hoveredCountry &&
+                  !hovered;
+                const isHi = isMarkerHighlight || isCountryHover;
                 return (
                   <Geography
                     key={geo.rsmKey}
                     geography={geo}
+                    onMouseEnter={() => setHoveredCountry(name)}
+                    onMouseLeave={() =>
+                      setHoveredCountry((c) => (c === name ? null : c))
+                    }
                     fill={
-                      isHighlighted
+                      isHi
                         ? "url(#country-fill-highlight)"
                         : "url(#country-fill)"
                     }
-                    stroke={isHighlighted ? "#d8a657" : "#3a4554"}
-                    strokeWidth={isHighlighted ? 0.9 : 0.5}
+                    stroke={isHi ? "#d8a657" : "#3a4554"}
+                    strokeWidth={isHi ? 0.9 : 0.5}
                     style={{
                       default: { outline: "none", transition: "fill 200ms" },
                       hover: {
@@ -150,9 +155,6 @@ export default function WorldMap({
             }
           </Geographies>
 
-          {/* Reference to suppress unused warning when needed */}
-          <g data-hovered-country={hoveredCountryCode ?? ""} />
-
           {showRoute &&
             legs.slice(0, visibleLegCount).map((leg) => {
               const style = MODE_STYLE[leg.mode];
@@ -164,7 +166,7 @@ export default function WorldMap({
                   to={leg.toCoord}
                   stroke={style.color}
                   strokeWidth={isCurrent ? style.width + 1 : style.width}
-                  strokeOpacity={isCurrent ? 0.95 : 0.5}
+                  strokeOpacity={isCurrent ? 0.95 : 0.55}
                   strokeLinecap="round"
                   strokeDasharray={style.dash === "0" ? undefined : style.dash}
                   fill="none"
@@ -175,7 +177,6 @@ export default function WorldMap({
           {places.map((place) => {
             const isDim = dimmed.has(place.slug);
             const isHub = place.slug === PARIS_SLUG;
-            const stopCount = place.stops.length;
             return (
               <Marker
                 key={place.slug}
@@ -196,37 +197,15 @@ export default function WorldMap({
                   }}
                 >
                   <circle
-                    r={isHub ? 22 : 14}
+                    r={isHub ? 18 : 10}
                     fill={`url(#${isHub ? "paris-glow" : "marker-glow"})`}
                   />
                   <circle
-                    r={isHub ? 7 : 5}
-                    className="marker-pulse"
-                    fill="none"
-                    stroke={isHub ? "#ff8a4a" : "#d8a657"}
-                    strokeWidth={1.2}
-                    style={{ transformOrigin: "center" }}
-                  />
-                  <circle
-                    r={isHub ? 5 : 3.5}
-                    fill={isHub ? "#ff8a4a" : "#d8a657"}
+                    r={isHub ? 5 : 3.2}
+                    fill={isHub ? "#fff1c2" : "#d8a657"}
                     stroke="#0b0d10"
-                    strokeWidth={1.2}
+                    strokeWidth={1}
                   />
-                  {isHub && stopCount > 1 && (
-                    <text
-                      y={-12}
-                      textAnchor="middle"
-                      className="font-mono"
-                      style={{
-                        fontSize: "8px",
-                        fill: "#ff8a4a",
-                        letterSpacing: "0.1em",
-                      }}
-                    >
-                      {stopCount}× HOME
-                    </text>
-                  )}
                 </g>
               </Marker>
             );
@@ -234,10 +213,11 @@ export default function WorldMap({
         </ZoomableGroup>
       </ComposableMap>
 
+      {/* Marker hover card (priority) */}
       <AnimatePresence>
         {hovered && (
           <motion.div
-            key={hovered.slug}
+            key={`m-${hovered.slug}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 4 }}
@@ -259,6 +239,28 @@ export default function WorldMap({
               <div className="mt-2 max-w-[240px] text-sm italic text-bone/80">
                 &ldquo;{hovered.tagline}&rdquo;
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Country name tooltip (only when no marker hover is active) */}
+      <AnimatePresence>
+        {hoveredCountry && !hovered && (
+          <motion.div
+            key={`c-${hoveredCountry}`}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.12 }}
+            className="pointer-events-none absolute z-10 hidden md:block"
+            style={{
+              left: Math.min(pos.x + 14, 9999),
+              top: Math.max(pos.y + 12, 0),
+            }}
+          >
+            <div className="rounded-sm border border-ink-3 bg-ink-2/90 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-bone-dim shadow-md backdrop-blur-md">
+              {hoveredCountry}
             </div>
           </motion.div>
         )}

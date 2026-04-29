@@ -32,6 +32,7 @@ const MODE_ICON: Record<TransportMode, string> = {
   train: "▤",
   car: "▣",
   ship: "≋",
+  bus: "▦",
 };
 
 export default function Stats({ stats }: { stats: StatsType }) {
