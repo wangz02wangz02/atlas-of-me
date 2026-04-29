@@ -1,28 +1,75 @@
-import "server-only";
-import fs from "node:fs";
-import path from "node:path";
-import type { Continent, Place, Stats } from "./places-types";
+import type {
+  Continent,
+  Place,
+  Stats,
+  TransportMode,
+  Leg,
+} from "./places-types";
+import { CITIES, LEGS, getStopSequence } from "./journey";
 
-export type { Continent, Place, Stats } from "./places-types";
+export type {
+  Continent,
+  Place,
+  Stats,
+  TransportMode,
+  Leg,
+} from "./places-types";
 export { CONTINENT_VIEW } from "./places-types";
-
-const CONTENT_DIR = path.join(process.cwd(), "content", "places");
+export { LEGS, MODE_STYLE, CITIES } from "./journey";
 
 let cache: Place[] | null = null;
 
-export function getAllPlaces(): Place[] {
-  if (cache) return cache;
-  const files = fs
-    .readdirSync(CONTENT_DIR)
-    .filter((f) => f.endsWith(".json"))
-    .sort();
-  const places = files.map((file) => {
-    const raw = fs.readFileSync(path.join(CONTENT_DIR, file), "utf8");
-    return JSON.parse(raw) as Place;
+function buildPlaces(): Place[] {
+  const stopsByCity = new Map<string, number[]>();
+  const seq = getStopSequence();
+  seq.forEach((slug, i) => {
+    const stop = i + 1; // 1-based stop number
+    const arr = stopsByCity.get(slug) ?? [];
+    arr.push(stop);
+    stopsByCity.set(slug, arr);
   });
-  places.sort((a, b) => b.visitedAt.localeCompare(a.visitedAt));
-  cache = places;
+
+  const places: Place[] = Object.values(CITIES).map((city) => {
+    const stops = stopsByCity.get(city.slug) ?? [];
+    const seeds =
+      city.photoSeeds ??
+      [
+        `${city.slug}-1`,
+        `${city.slug}-2`,
+        `${city.slug}-3`,
+      ];
+    const photos = seeds.map((seed, i) => ({
+      src: `https://picsum.photos/seed/${encodeURIComponent(seed)}/${i === 0 ? 1600 : 1200}/${i === 0 ? 900 : 1500}`,
+      alt: `${city.name} — view ${i + 1}`,
+    }));
+    return {
+      slug: city.slug,
+      name: city.name,
+      country: city.country,
+      countryCode: city.countryCode,
+      continent: city.continent,
+      coordinates: city.coordinates,
+      firstStop: stops[0] ?? 0,
+      stops,
+      tagline: city.tagline,
+      journal: city.journal,
+      photos,
+      audio: { durationLabel: "—:—" },
+    };
+  });
+
+  // Newest visit first, so the home page lists work
+  places.sort((a, b) => {
+    const aLast = a.stops[a.stops.length - 1] ?? 0;
+    const bLast = b.stops[b.stops.length - 1] ?? 0;
+    return bLast - aLast;
+  });
   return places;
+}
+
+export function getAllPlaces(): Place[] {
+  if (!cache) cache = buildPlaces();
+  return cache;
 }
 
 export function getPlace(slug: string): Place | undefined {
@@ -52,20 +99,43 @@ export function getStats(): Stats {
   const places = getAllPlaces();
   const countries = new Set(places.map((p) => p.country));
   const continents = new Set(places.map((p) => p.continent));
+
+  const legsByMode: Record<TransportMode, number> = {
+    flight: 0,
+    train: 0,
+    car: 0,
+    ship: 0,
+  };
   let totalDistanceKm = 0;
-  const chrono = [...places].sort((a, b) =>
-    a.visitedAt.localeCompare(b.visitedAt),
-  );
-  for (let i = 1; i < chrono.length; i++) {
-    totalDistanceKm += haversineKm(
-      chrono[i - 1].coordinates,
-      chrono[i].coordinates,
-    );
+  for (const leg of LEGS) {
+    legsByMode[leg.mode] += 1;
+    const from = CITIES[leg.from];
+    const to = CITIES[leg.to];
+    if (from && to) {
+      totalDistanceKm += haversineKm(from.coordinates, to.coordinates);
+    }
   }
+
   return {
     totalPlaces: places.length,
     totalCountries: countries.size,
     totalContinents: continents.size,
     totalDistanceKm: Math.round(totalDistanceKm),
+    totalLegs: LEGS.length,
+    legsByMode,
   };
+}
+
+/** Resolved leg objects (with full city data on either side). */
+export function getResolvedLegs(): Array<
+  Leg & {
+    fromCoord: [number, number];
+    toCoord: [number, number];
+  }
+> {
+  return LEGS.map((leg) => ({
+    ...leg,
+    fromCoord: CITIES[leg.from].coordinates,
+    toCoord: CITIES[leg.to].coordinates,
+  }));
 }

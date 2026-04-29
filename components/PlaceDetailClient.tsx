@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion, type Variants } from "motion/react";
 import type { Place } from "@/lib/places-types";
 import AudioPlayer from "./AudioPlayer";
 import PhotoGallery from "./PhotoGallery";
+import PolaroidGallery from "./PolaroidGallery";
 
 const fade: Variants = {
   hidden: { opacity: 0, y: 14 },
@@ -21,11 +23,15 @@ const fade: Variants = {
 };
 
 export default function PlaceDetailClient({ place }: { place: Place }) {
+  const [galleryMode, setGalleryMode] = useState<"grid" | "polaroid">("grid");
   const hero = place.photos[0];
+  const stopLabel =
+    place.stops.length > 1
+      ? `Stops ${place.stops.join(", ")}`
+      : `Stop ${place.firstStop}`;
 
   return (
     <article className="relative">
-      {/* Hero */}
       <div className="relative h-[60vh] min-h-[420px] w-full overflow-hidden">
         <motion.div
           initial={{ scale: 1.08, opacity: 0 }}
@@ -53,7 +59,7 @@ export default function PlaceDetailClient({ place }: { place: Place }) {
             variants={fade}
             className="text-[10px] uppercase tracking-[0.3em] text-amber"
           >
-            {place.continent} · {place.country} · {place.visitedAt}
+            {place.continent} · {place.country} · {stopLabel}
           </motion.div>
           <motion.h1
             initial="hidden"
@@ -119,10 +125,35 @@ export default function PlaceDetailClient({ place }: { place: Place }) {
           custom={1}
           variants={fade}
         >
-          <h2 className="mb-5 text-[10px] uppercase tracking-[0.3em] text-bone-dim">
-            Photographs
-          </h2>
-          <PhotoGallery photos={place.photos} />
+          <div className="mb-5 flex items-baseline justify-between">
+            <h2 className="text-[10px] uppercase tracking-[0.3em] text-bone-dim">
+              Photographs
+            </h2>
+            <div className="inline-flex rounded-full border border-ink-3 p-0.5">
+              {(["grid", "polaroid"] as const).map((m) => {
+                const active = galleryMode === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setGalleryMode(m)}
+                    className={`rounded-full px-3 py-1 text-xs transition ${
+                      active
+                        ? "bg-amber/15 text-amber"
+                        : "text-bone-dim hover:text-bone"
+                    }`}
+                  >
+                    {m === "grid" ? "Grid" : "Polaroid"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          {galleryMode === "grid" ? (
+            <PhotoGallery photos={place.photos} />
+          ) : (
+            <PolaroidGallery photos={place.photos} />
+          )}
         </motion.div>
 
         <div className="mt-16 flex justify-between border-t border-ink-3 pt-8 text-sm">

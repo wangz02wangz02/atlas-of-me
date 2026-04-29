@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
 import WorldMap from "./WorldMap";
 import Globe from "./Globe";
+import JourneyScrubber from "./JourneyScrubber";
+import { LEGS, CITIES } from "@/lib/places";
 import {
   CONTINENT_VIEW,
   type Place,
@@ -23,25 +25,29 @@ export default function AtlasExplorer({ places, continents }: Props) {
   const router = useRouter();
   const [view, setView] = useState<"flat" | "globe">("flat");
   const [continent, setContinent] = useState<FilterValue>("All");
-  const [year, setYear] = useState<number | "All">("All");
   const [center, setCenter] = useState<[number, number]>(
     CONTINENT_VIEW.All.center,
   );
   const [zoom, setZoom] = useState<number>(CONTINENT_VIEW.All.zoom);
   const [focusedSlug, setFocusedSlug] = useState<string | null>(null);
-
-  const years = useMemo(() => {
-    const set = new Set(places.map((p) => p.year));
-    return Array.from(set).sort((a, b) => b - a);
-  }, [places]);
+  const [scrubberValue, setScrubberValue] = useState<number>(LEGS.length);
 
   const filteredPlaces = useMemo(() => {
-    return places.filter((p) => {
-      if (continent !== "All" && p.continent !== continent) return false;
-      if (year !== "All" && p.year !== year) return false;
-      return true;
-    });
-  }, [places, continent, year]);
+    if (continent === "All") return places;
+    return places.filter((p) => p.continent === continent);
+  }, [places, continent]);
+
+  // When the scrubber moves to a partial value, follow the journey on the map.
+  useEffect(() => {
+    if (scrubberValue >= LEGS.length || scrubberValue < 0) return;
+    const leg = scrubberValue > 0 ? LEGS[scrubberValue - 1] : null;
+    const targetSlug = leg ? leg.to : LEGS[0].from;
+    const target = CITIES[targetSlug];
+    if (!target) return;
+    setFocusedSlug(targetSlug);
+    setCenter(target.coordinates);
+    setZoom(2.4);
+  }, [scrubberValue]);
 
   const setContinentAndZoom = (c: FilterValue) => {
     setContinent(c);
@@ -49,7 +55,6 @@ export default function AtlasExplorer({ places, continents }: Props) {
     setCenter(view.center);
     setZoom(view.zoom);
     if (c !== "All") {
-      // For globe: orient toward the first place in that continent
       const first = places.find((p) => p.continent === c);
       if (first) setFocusedSlug(first.slug);
     } else {
@@ -67,27 +72,22 @@ export default function AtlasExplorer({ places, continents }: Props) {
   const zoomOut = () => setZoom((z) => Math.max(1, z / 1.4));
   const resetView = () => {
     setContinent("All");
-    setYear("All");
     setCenter(CONTINENT_VIEW.All.center);
     setZoom(CONTINENT_VIEW.All.zoom);
     setFocusedSlug(null);
+    setScrubberValue(LEGS.length);
   };
+
+  const legsThrough = scrubberValue < LEGS.length ? scrubberValue : null;
 
   return (
     <div>
-      {/* Filters + view + actions row */}
       <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-3">
         <FilterGroup
           label="Continent"
           value={continent}
           options={["All", ...continents]}
           onChange={(v) => setContinentAndZoom(v as FilterValue)}
-        />
-        <FilterGroup
-          label="Year"
-          value={String(year)}
-          options={["All", ...years.map(String)]}
-          onChange={(v) => setYear(v === "All" ? "All" : Number(v))}
         />
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle value={view} onChange={setView} />
@@ -117,6 +117,7 @@ export default function AtlasExplorer({ places, continents }: Props) {
                 filterContinent={continent}
                 center={center}
                 zoom={zoom}
+                legsThrough={legsThrough}
                 onMoveEnd={({ coordinates, zoom: z }) => {
                   setCenter(coordinates);
                   setZoom(z);
@@ -126,10 +127,6 @@ export default function AtlasExplorer({ places, continents }: Props) {
                 <ZoomBtn label="+" onClick={zoomIn} />
                 <ZoomBtn label="−" onClick={zoomOut} />
                 <ZoomBtn label="◯" onClick={resetView} title="Reset view" />
-              </div>
-              <div className="pointer-events-none absolute bottom-3 right-5 font-mono text-[10px] uppercase tracking-[0.2em] text-bone-dim/70">
-                {filteredPlaces.length}/{places.length} shown · zoom{" "}
-                {zoom.toFixed(1)}×
               </div>
             </motion.div>
           ) : (
@@ -144,6 +141,7 @@ export default function AtlasExplorer({ places, continents }: Props) {
               <Globe
                 places={places}
                 focusedSlug={focusedSlug}
+                legsThrough={legsThrough}
                 size={560}
               />
               <p className="mt-3 text-center text-[10px] uppercase tracking-[0.22em] text-bone-dim/70">
@@ -152,6 +150,10 @@ export default function AtlasExplorer({ places, continents }: Props) {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
+
+      <div className="mt-5">
+        <JourneyScrubber value={scrubberValue} onChange={setScrubberValue} />
       </div>
 
       <div className="mt-10">
@@ -169,7 +171,7 @@ export default function AtlasExplorer({ places, continents }: Props) {
               key={p.slug}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: i * 0.04 }}
+              transition={{ duration: 0.4, delay: Math.min(i, 12) * 0.03 }}
             >
               <Link
                 href={`/places/${p.slug}`}
@@ -180,7 +182,8 @@ export default function AtlasExplorer({ places, continents }: Props) {
                     {p.name}
                   </span>
                   <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-bone-dim">
-                    {p.visitedAt}
+                    stop {p.firstStop}
+                    {p.stops.length > 1 ? `+${p.stops.length - 1}` : ""}
                   </span>
                 </div>
                 <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-bone-dim">

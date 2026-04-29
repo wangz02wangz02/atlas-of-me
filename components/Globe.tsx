@@ -15,6 +15,7 @@ import {
 import { geoCircle } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
+import { MODE_STYLE, getResolvedLegs } from "@/lib/places";
 
 const GEO_URL = "/geo/countries-110m.json";
 
@@ -25,9 +26,12 @@ type Props = {
   showRoute?: boolean;
   showStars?: boolean;
   showTerminator?: boolean;
+  /** Show only legs up to this stop number (for the journey scrubber). */
+  legsThrough?: number | null;
   size?: number;
 };
 
+const PARIS_SLUG = "paris";
 const TO_RAD = Math.PI / 180;
 
 function isVisible(
@@ -46,7 +50,6 @@ function isVisible(
   return cosD > 0.05;
 }
 
-/** Where the sun is overhead right now, in [longitude, latitude]. */
 function subsolarPoint(date: Date): [number, number] {
   const start = Date.UTC(date.getUTCFullYear(), 0, 0);
   const dayOfYear = Math.floor((date.getTime() - start) / 86400000);
@@ -87,13 +90,13 @@ function GlobeImpl({
   showRoute = true,
   showStars = true,
   showTerminator = true,
+  legsThrough = null,
   size = 520,
 }: Props) {
   const router = useRouter();
   const [rotate, setRotate] = useState<[number, number, number]>([-15, -25, 0]);
   const [hovered, setHovered] = useState<Place | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  // Recompute night side every minute — date is stable enough for 60s.
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const dragging = useRef(false);
@@ -101,7 +104,6 @@ function GlobeImpl({
   const interactingAt = useRef<number>(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Star positions — generated once on mount, deterministic for this session.
   const stars = useMemo(
     () =>
       Array.from({ length: 90 }, () => ({
@@ -199,21 +201,8 @@ function GlobeImpl({
     return m;
   }, [places, rotate]);
 
-  const legs = useMemo(() => {
-    const chrono = [...places].sort((a, b) =>
-      a.visitedAt.localeCompare(b.visitedAt),
-    );
-    const out: { from: [number, number]; to: [number, number]; key: string }[] =
-      [];
-    for (let i = 1; i < chrono.length; i++) {
-      out.push({
-        from: chrono[i - 1].coordinates,
-        to: chrono[i].coordinates,
-        key: `${chrono[i - 1].slug}->${chrono[i].slug}`,
-      });
-    }
-    return out;
-  }, [places]);
+  const legs = useMemo(() => getResolvedLegs(), []);
+  const visibleLegCount = legsThrough ?? legs.length;
 
   const trackPos = (e: React.PointerEvent) => {
     const rect = wrapperRef.current?.getBoundingClientRect();
@@ -235,7 +224,6 @@ function GlobeImpl({
       onPointerCancel={onPointerUp}
       onPointerLeave={onPointerUp}
     >
-      {/* Star field — sits behind the globe, simulates space. */}
       {showStars && (
         <div className="pointer-events-none absolute inset-0">
           {stars.map((s, i) => (
@@ -254,7 +242,6 @@ function GlobeImpl({
         </div>
       )}
 
-      {/* Outer atmosphere/halo */}
       <div
         className="pointer-events-none absolute inset-0 rounded-full"
         style={{
@@ -275,7 +262,6 @@ function GlobeImpl({
         }}
       >
         <defs>
-          {/* Vintage atlas palette: deep navy seas, warm sand land. */}
           <radialGradient id="ocean" cx="38%" cy="34%" r="72%">
             <stop offset="0%" stopColor="#1e4566" />
             <stop offset="55%" stopColor="#0e2e4a" />
@@ -285,13 +271,18 @@ function GlobeImpl({
             <stop offset="0%" stopColor="#d6b483" />
             <stop offset="100%" stopColor="#9a7546" />
           </linearGradient>
-          <linearGradient id="land-hover" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#e9c89a" />
-            <stop offset="100%" stopColor="#b18a55" />
+          <linearGradient id="land-highlight" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#f5d8a4" />
+            <stop offset="100%" stopColor="#c8975a" />
           </linearGradient>
           <radialGradient id="globe-marker">
             <stop offset="0%" stopColor="#ff8a4a" stopOpacity="0.95" />
             <stop offset="55%" stopColor="#ff8a4a" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#ff8a4a" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="globe-marker-paris">
+            <stop offset="0%" stopColor="#fff1c2" stopOpacity="1" />
+            <stop offset="50%" stopColor="#ff8a4a" stopOpacity="0.4" />
             <stop offset="100%" stopColor="#ff8a4a" stopOpacity="0" />
           </radialGradient>
         </defs>
@@ -310,44 +301,70 @@ function GlobeImpl({
         />
 
         <Geographies geography={GEO_URL}>
-          {({ geographies }: { geographies: Array<{ rsmKey: string }> }) =>
-            geographies.map((geo) => (
-              <Geography
-                key={geo.rsmKey}
-                geography={geo}
-                fill="url(#land)"
-                stroke="#6b4d2c"
-                strokeWidth={0.4}
-                style={{
-                  default: { outline: "none" },
-                  hover: { fill: "url(#land-hover)", outline: "none" },
-                  pressed: { fill: "url(#land-hover)", outline: "none" },
-                }}
-              />
-            ))
+          {({
+            geographies,
+          }: {
+            geographies: Array<{
+              rsmKey: string;
+              properties: { name: string };
+            }>;
+          }) =>
+            geographies.map((geo) => {
+              const isHighlighted =
+                hovered != null &&
+                geo.properties?.name?.toLowerCase() ===
+                  hovered.country.toLowerCase();
+              return (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  fill={
+                    isHighlighted ? "url(#land-highlight)" : "url(#land)"
+                  }
+                  stroke={isHighlighted ? "#ff8a4a" : "#6b4d2c"}
+                  strokeWidth={isHighlighted ? 0.7 : 0.4}
+                  style={{
+                    default: { outline: "none", transition: "fill 200ms" },
+                    hover: {
+                      fill: "url(#land-highlight)",
+                      outline: "none",
+                    },
+                    pressed: {
+                      fill: "url(#land-highlight)",
+                      outline: "none",
+                    },
+                  }}
+                />
+              );
+            })
           }
         </Geographies>
 
         {showTerminator && <NightTerminator now={nowMs} />}
 
         {showRoute &&
-          legs.map((leg) => (
-            <Line
-              key={leg.key}
-              from={leg.from}
-              to={leg.to}
-              stroke="#ff8a4a"
-              strokeWidth={1}
-              strokeOpacity={0.6}
-              strokeLinecap="round"
-              strokeDasharray="2 4"
-              fill="none"
-            />
-          ))}
+          legs.slice(0, visibleLegCount).map((leg) => {
+            const style = MODE_STYLE[leg.mode];
+            const isCurrent = legsThrough === leg.index;
+            return (
+              <Line
+                key={leg.index}
+                from={leg.fromCoord}
+                to={leg.toCoord}
+                stroke={style.color}
+                strokeWidth={isCurrent ? style.width + 1 : style.width}
+                strokeOpacity={isCurrent ? 0.95 : 0.6}
+                strokeLinecap="round"
+                strokeDasharray={style.dash === "0" ? undefined : style.dash}
+                fill="none"
+              />
+            );
+          })}
 
         {places.map((place) => {
           const visible = visibleByPlace.get(place.slug);
           if (!visible) return null;
+          const isHub = place.slug === PARIS_SLUG;
           return (
             <Marker
               key={place.slug}
@@ -362,18 +379,21 @@ function GlobeImpl({
               }}
             >
               <g>
-                <circle r={14} fill="url(#globe-marker)" />
                 <circle
-                  r={5}
+                  r={isHub ? 20 : 14}
+                  fill={`url(#${isHub ? "globe-marker-paris" : "globe-marker"})`}
+                />
+                <circle
+                  r={isHub ? 7 : 5}
                   className="marker-pulse"
                   fill="none"
                   stroke="#ff8a4a"
-                  strokeWidth={1}
+                  strokeWidth={isHub ? 1.4 : 1}
                   style={{ transformOrigin: "center" }}
                 />
                 <circle
-                  r={3.6}
-                  fill="#ff8a4a"
+                  r={isHub ? 5 : 3.6}
+                  fill={isHub ? "#fff1c2" : "#ff8a4a"}
                   stroke="#0b0d10"
                   strokeWidth={1.2}
                 />
@@ -402,7 +422,7 @@ function GlobeImpl({
                 {hovered.name}
               </div>
               <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-bone-dim">
-                {hovered.country} · {hovered.year}
+                {hovered.country} · stop {hovered.firstStop}
               </div>
             </div>
           </motion.div>
@@ -412,12 +432,6 @@ function GlobeImpl({
   );
 }
 
-/**
- * Mount-gated wrapper. The d3-geo orthographic path generation produced a
- * subpixel-different `d` attribute between SSR and client hydration, which
- * surfaced as a hydration error on `<clipPath id="globe-sphere">`. Render
- * client-only — the globe is fully interactive (rAF, drag, etc.) anyway.
- */
 export default function Globe(props: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);

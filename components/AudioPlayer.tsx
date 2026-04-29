@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
 
 type Props = {
@@ -15,11 +15,25 @@ function fmt(t: number): string {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
+const BAR_COUNT = 48;
+
 export default function AudioPlayer({ src, durationLabel }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  // Deterministic "fake waveform" — heights vary across the bar set so it
+  // looks like a recording. Real waveform analysis would need WebAudio +
+  // the actual file; this is decorative for v1.
+  const heights = useMemo(() => {
+    return Array.from({ length: BAR_COUNT }, (_, i) => {
+      const a = Math.sin(i * 0.7) * 0.5 + 0.5;
+      const b = Math.sin(i * 0.21 + 1.3) * 0.5 + 0.5;
+      const c = Math.sin(i * 1.5 + 0.4) * 0.3 + 0.5;
+      return Math.max(0.18, Math.min(1, (a + b + c) / 2.4));
+    });
+  }, []);
 
   useEffect(() => {
     const a = audioRef.current;
@@ -60,7 +74,7 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
           onClick={toggle}
           disabled={!hasAudio}
           aria-label={playing ? "Pause audio log" : "Play audio log"}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-amber/30 bg-amber/10 text-amber transition hover:bg-amber/20 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-amber/30 bg-amber/10 text-amber transition hover:bg-amber/20 disabled:cursor-not-allowed disabled:opacity-30"
         >
           {playing ? (
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
@@ -83,12 +97,42 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
                 : durationLabel ?? "—:—"}
             </span>
           </div>
-          <div className="relative mt-2 h-[2px] w-full overflow-hidden rounded-full bg-ink-3">
-            <motion.div
-              className="absolute left-0 top-0 h-full bg-amber"
-              animate={{ width: `${pct}%` }}
-              transition={{ duration: 0.1, ease: "linear" }}
-            />
+
+          {/* Animated waveform — bars before the playhead are amber, ahead are dimmed. */}
+          <div
+            className="relative mt-2 flex h-9 w-full items-center gap-[2px]"
+            aria-hidden
+          >
+            {heights.map((h, i) => {
+              const barCenterPct = ((i + 0.5) / BAR_COUNT) * 100;
+              const isPast = barCenterPct <= pct;
+              return (
+                <motion.span
+                  key={i}
+                  className="block flex-1 rounded-[2px]"
+                  style={{
+                    background: isPast ? "#d8a657" : "#3a4554",
+                  }}
+                  animate={{
+                    scaleY: playing
+                      ? [h, Math.max(0.18, h * 1.4), h]
+                      : h,
+                  }}
+                  transition={
+                    playing
+                      ? {
+                          duration: 0.6 + ((i * 13) % 7) / 18,
+                          repeat: Infinity,
+                          ease: "easeInOut",
+                          delay: (i % 5) * 0.05,
+                        }
+                      : { duration: 0.3 }
+                  }
+                  initial={{ scaleY: h }}
+                  data-height={h}
+                />
+              );
+            })}
           </div>
         </div>
       </div>
