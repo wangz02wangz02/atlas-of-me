@@ -85,7 +85,7 @@ function NightTerminator({ now }: { now: number }) {
 function GlobeImpl({
   places,
   focusedSlug = null,
-  autoRotate = true,
+  autoRotate = false,
   showRoute = true,
   showStars = true,
   showTerminator = true,
@@ -195,11 +195,21 @@ function GlobeImpl({
     lastPointer.current = null;
     interactingAt.current = performance.now();
   };
-  const onWheel = (e: React.WheelEvent) => {
-    const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-    setZoom((z) => Math.max(0.7, Math.min(4, z * factor)));
-    interactingAt.current = performance.now();
-  };
+
+  // Native wheel listener with passive:false so we can preventDefault and
+  // stop the page from scrolling/zooming while the user zooms the globe.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+      setZoom((z) => Math.max(0.7, Math.min(4, z * factor)));
+      interactingAt.current = performance.now();
+    };
+    el.addEventListener("wheel", handler, { passive: false });
+    return () => el.removeEventListener("wheel", handler);
+  }, []);
 
   const visibleByPlace = useMemo(() => {
     const m = new Map<string, boolean>();
@@ -231,7 +241,6 @@ function GlobeImpl({
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       onPointerLeave={onPointerUp}
-      onWheel={onWheel}
     >
       {showStars && (
         <div className="pointer-events-none absolute inset-0">

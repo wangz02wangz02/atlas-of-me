@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "motion/react";
 
 type Props = {
   src?: string;
@@ -98,38 +97,23 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
             </span>
           </div>
 
-          {/* Animated waveform — bars before the playhead are amber, ahead are dimmed. */}
+          {/* Static waveform — bars stay still, color shows progress. */}
           <div
-            className="relative mt-2 flex h-9 w-full items-center gap-[2px]"
+            className="relative mt-2 flex h-9 w-full items-end gap-[2px]"
             aria-hidden
           >
             {heights.map((h, i) => {
               const barCenterPct = ((i + 0.5) / BAR_COUNT) * 100;
               const isPast = barCenterPct <= pct;
               return (
-                <motion.span
+                <span
                   key={i}
                   className="block flex-1 rounded-[2px]"
                   style={{
+                    height: `${Math.round(h * 100)}%`,
                     background: isPast ? "#d8a657" : "#3a4554",
+                    transition: "background 200ms",
                   }}
-                  animate={{
-                    scaleY: playing
-                      ? [h, Math.max(0.18, h * 1.4), h]
-                      : h,
-                  }}
-                  transition={
-                    playing
-                      ? {
-                          duration: 0.6 + ((i * 13) % 7) / 18,
-                          repeat: Infinity,
-                          ease: "easeInOut",
-                          delay: (i % 5) * 0.05,
-                        }
-                      : { duration: 0.3 }
-                  }
-                  initial={{ scaleY: h }}
-                  data-height={h}
                 />
               );
             })}

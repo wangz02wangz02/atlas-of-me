@@ -64,8 +64,16 @@ export default function AtlasExplorer({ places, continents }: Props) {
 
   const goRandom = () => {
     const pool = filteredPlaces.length ? filteredPlaces : places;
+    if (pool.length === 0) return;
     const pick = pool[Math.floor(Math.random() * pool.length)];
-    if (pick) router.push(`/places/${pick.slug}`);
+    if (!pick) return;
+    const href = `/places/${pick.slug}`;
+    // Hard navigation — bulletproof regardless of router state.
+    if (typeof window !== "undefined") {
+      window.location.href = href;
+    } else {
+      router.push(href);
+    }
   };
 
   const zoomIn = () => setZoom((z) => Math.min(6, z * 1.4));

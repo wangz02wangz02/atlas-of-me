@@ -33,16 +33,16 @@ export const MODE_STYLE: Record<
   TransportMode,
   { label: string; color: string; dash: string; width: number }
 > = {
-  // Flight: warm orange, broken / "dotted-dashed" — visually flighty.
-  flight: { label: "Flight", color: "#ff8a4a", dash: "5 4", width: 0.8 },
+  // Flight: hot magenta — pops on both navy ocean AND sand land.
+  flight: { label: "Flight", color: "#ff5599", dash: "5 4", width: 1 },
   // Train: cool cyan, thick & solid — reads as a steel rail.
   train: { label: "Train", color: "#4ec9d8", dash: "0", width: 1.7 },
-  // Drive: warm yellow, fine dotted.
-  car: { label: "Drive", color: "#e8c46a", dash: "1 2", width: 1.1 },
-  // Ship: pale blue, dot-dash.
+  // Drive: lime — distinct from cyan; visible on warm sand land.
+  car: { label: "Drive", color: "#a3e34c", dash: "1 2", width: 1.2 },
+  // Ship: pale ice blue, dot-dash.
   ship: { label: "Ship", color: "#74c0e6", dash: "4 2 1 2", width: 1.3 },
   // Bus: violet, long dash.
-  bus: { label: "Bus", color: "#b08fd9", dash: "6 3", width: 1.3 },
+  bus: { label: "Bus", color: "#c69bff", dash: "6 3", width: 1.3 },
 };
 
 const PARIS_JOURNAL = `I had a list. I tossed the list. Paris is better when you are slightly late for everything you didn't plan.
