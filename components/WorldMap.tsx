@@ -21,11 +21,15 @@ import {
 import { geoCircle, geoInterpolate } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
-import { getResolvedLegs } from "@/lib/places";
+import { getResolvedLegs, MODE_STYLE } from "@/lib/places";
 import LandmarkLayer from "./LandmarkLayer";
 
 const GEO_URL = "/geo/countries-110m.json";
 const TO_RAD = Math.PI / 180;
+
+// Equirectangular projection at scale 165: world width = 2π×scale
+const FLAT_SCALE = 165;
+const WORLD_W = 2 * Math.PI * FLAT_SCALE;
 
 type Props = {
   places: Place[];
@@ -161,45 +165,29 @@ const MapBody = memo(function MapBody({
     return out;
   }, [legs, visibleLegCount]);
 
-  // Marker sizes shrink at low zoom so the cluster doesn't overlap
   const markerScale = Math.max(0.5, Math.min(1.4, zoom / 2));
   const focusedPlace = focusedSlug ? places.find((p) => p.slug === focusedSlug) : null;
 
-  // De-dup landmarks visibility map (always-visible on flat)
   const visibleAll = useMemo(() => {
     const m = new Map<string, boolean>();
     for (const p of places) m.set(p.slug, true);
     return m;
   }, [places]);
 
+  const hoveredSlugs = useMemo(() => {
+    const set = new Set<string>();
+    if (hoveredCountry) {
+      for (const p of places) {
+        if (p.country.toLowerCase() === hoveredCountry.toLowerCase()) {
+          set.add(p.slug);
+        }
+      }
+    }
+    return set;
+  }, [hoveredCountry, places]);
+
   return (
     <>
-      <defs>
-        <linearGradient id="flat-land" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#f0e3ca" />
-          <stop offset="100%" stopColor="#d6bb8a" />
-        </linearGradient>
-        <linearGradient id="flat-land-place" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#f6d8a4" />
-          <stop offset="100%" stopColor="#cb9b56" />
-        </linearGradient>
-        <linearGradient id="flat-land-hi" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#fff2d7" />
-          <stop offset="100%" stopColor="#e7c994" />
-        </linearGradient>
-        <linearGradient id="flat-ocean" x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor="#e1ebef" />
-          <stop offset="100%" stopColor="#c0d5dc" />
-        </linearGradient>
-        <radialGradient id="focus-pulse-flat">
-          <stop offset="0%" stopColor="#9a4a28" stopOpacity="0.85" />
-          <stop offset="60%" stopColor="#9a4a28" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="#9a4a28" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      <Sphere id="flat-sphere" fill="url(#flat-ocean)" stroke="none" strokeWidth={0} />
-
       <Geographies geography={GEO_URL}>
         {({ geographies }: { geographies: Array<{ rsmKey: string; properties: { name: string } }> }) =>
           geographies.map((geo) => {
@@ -221,8 +209,8 @@ const MapBody = memo(function MapBody({
                 onMouseEnter={() => onCountryEnter(name)}
                 onClick={() => onCountryClick(name, hasPlace)}
                 fill={fill}
-                stroke={isHi ? "#9a4a28" : "rgba(122,94,52,0.35)"}
-                strokeWidth={isHi ? 0.6 / zoom : 0.3 / zoom}
+                stroke={isHi ? "#9a4a28" : "rgba(122,94,52,0.30)"}
+                strokeWidth={isHi ? 0.6 / zoom : 0.25 / zoom}
                 style={{
                   default: {
                     outline: "none",
@@ -247,15 +235,37 @@ const MapBody = memo(function MapBody({
 
       {showTerminator && <NightShade now={nowMs} />}
 
-      {/* Single calm trail — replaces the loud per-leg colored lines */}
       {showRoute && trailPoints.length > 1 && (
         <g pointerEvents="none">
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.18)" width={3 / zoom} />
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.7)" width={0.8 / zoom} />
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.10)" width={3 / zoom} />
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.55)" width={0.8 / zoom} />
         </g>
       )}
 
-      {/* Focus pulse */}
+      {/* Per-leg lines — only highlight legs connected to the hovered country */}
+      {showRoute &&
+        legs.slice(0, visibleLegCount).map((leg) => {
+          const isCurrent = legsThrough === leg.index;
+          const isConnected =
+            hoveredSlugs.size > 0 &&
+            (hoveredSlugs.has(leg.from) || hoveredSlugs.has(leg.to));
+          if (!isConnected && !isCurrent) return null;
+          const style = MODE_STYLE[leg.mode];
+          return (
+            <Line
+              key={leg.index}
+              from={leg.fromCoord}
+              to={leg.toCoord}
+              stroke={style.color}
+              strokeWidth={(isCurrent ? 1.4 : 1) / zoom}
+              strokeOpacity={0.85}
+              strokeLinecap="round"
+              strokeDasharray={style.dash === "0" ? undefined : style.dash}
+              fill="none"
+            />
+          );
+        })}
+
       {focusedPlace && (
         <Marker coordinates={focusedPlace.coordinates}>
           <g pointerEvents="none">
@@ -271,10 +281,9 @@ const MapBody = memo(function MapBody({
         </Marker>
       )}
 
-      {/* Markers — small dots, scale-aware */}
       {places.map((place) => {
         const isHub = place.slug === PARIS_SLUG;
-        const r = (isHub ? 3.5 : 2.2) * markerScale;
+        const r = (isHub ? 3.2 : 2) * markerScale;
         return (
           <Marker
             key={place.slug}
@@ -292,7 +301,7 @@ const MapBody = memo(function MapBody({
               r={r}
               fill={isHub ? "#fde8b8" : "#b6803a"}
               stroke="#3a2a14"
-              strokeWidth={0.6 / zoom}
+              strokeWidth={0.5 / zoom}
             />
           </Marker>
         );
@@ -419,6 +428,8 @@ export default function WorldMap({
 
   const tooltipName = hoveredMarkerCountry ?? hoveredCountry;
 
+  // Wrap copies — render the world at -W, 0, +W so panning loops seamlessly.
+  // Index 0 is the canonical render (mouse interactions live here).
   return (
     <div
       ref={wrapperRef}
@@ -431,45 +442,83 @@ export default function WorldMap({
       }}
     >
       <ComposableMap
-        projection="geoEqualEarth"
-        projectionConfig={{ scale: 165 }}
-        width={980}
-        height={520}
+        projection="geoEquirectangular"
+        projectionConfig={{ scale: FLAT_SCALE }}
+        width={WORLD_W}
+        height={WORLD_W / 2}
         style={{ width: "100%", height: "auto" }}
       >
+        <defs>
+          <linearGradient id="flat-land" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#f0e3ca" />
+            <stop offset="100%" stopColor="#d6bb8a" />
+          </linearGradient>
+          <linearGradient id="flat-land-place" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#f6d8a4" />
+            <stop offset="100%" stopColor="#cb9b56" />
+          </linearGradient>
+          <linearGradient id="flat-land-hi" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#fff2d7" />
+            <stop offset="100%" stopColor="#e7c994" />
+          </linearGradient>
+          <linearGradient id="flat-ocean" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#e1ebef" />
+            <stop offset="100%" stopColor="#c0d5dc" />
+          </linearGradient>
+          <radialGradient id="focus-pulse-flat">
+            <stop offset="0%" stopColor="#9a4a28" stopOpacity="0.85" />
+            <stop offset="60%" stopColor="#9a4a28" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#9a4a28" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* Ocean stripe across the duplicated worlds */}
+        <rect
+          x={-WORLD_W * 1.5}
+          y={-WORLD_W / 4}
+          width={WORLD_W * 4}
+          height={WORLD_W}
+          fill="url(#flat-ocean)"
+        />
+        {/* Sphere clip is replaced by the rect above so wrap copies share an ocean */}
+        <Sphere id="flat-sphere" fill="transparent" stroke="none" strokeWidth={0} />
+
         <ZoomableGroup
           center={center}
           zoom={zoom}
-          minZoom={1}
+          minZoom={0.6}
           maxZoom={14}
           translateExtent={[
-            [-220, -140],
-            [1200, 660],
+            [-WORLD_W * 1.5, -WORLD_W / 4],
+            [WORLD_W * 1.5, (WORLD_W * 3) / 4],
           ]}
           onMoveEnd={onMoveEnd}
         >
-          <MapBody
-            places={places}
-            hoveredCountry={hoveredCountry}
-            hoveredMarkerCountry={hoveredMarkerCountry}
-            placeSlugs={placeSlugs}
-            showRoute={showRoute}
-            showTerminator={showTerminator}
-            showClocks={showClocks}
-            showLandmarks={showLandmarks}
-            legsThrough={legsThrough}
-            focusedSlug={focusedSlug}
-            zoom={zoom}
-            nowMs={nowMs}
-            onCountryEnter={onCountryEnter}
-            onCountryClick={onCountryClickInner}
-            onMarkerEnter={onMarkerEnter}
-            onMarkerLeave={onMarkerLeave}
-          />
+          {[-1, 0, 1].map((i) => (
+            <g key={i} transform={`translate(${i * WORLD_W} 0)`}>
+              <MapBody
+                places={places}
+                hoveredCountry={hoveredCountry}
+                hoveredMarkerCountry={hoveredMarkerCountry}
+                placeSlugs={placeSlugs}
+                showRoute={showRoute}
+                showTerminator={showTerminator}
+                showClocks={showClocks}
+                showLandmarks={showLandmarks}
+                legsThrough={legsThrough}
+                focusedSlug={focusedSlug}
+                zoom={zoom}
+                nowMs={nowMs}
+                onCountryEnter={onCountryEnter}
+                onCountryClick={onCountryClickInner}
+                onMarkerEnter={onMarkerEnter}
+                onMarkerLeave={onMarkerLeave}
+              />
+            </g>
+          ))}
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* Tooltip — DOM-positioned, never re-renders the SVG */}
       <div
         ref={tooltipRef}
         className="pointer-events-none absolute left-0 top-0 z-20"

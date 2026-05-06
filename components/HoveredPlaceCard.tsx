@@ -94,7 +94,7 @@ export default function HoveredPlaceCard({ place }: { place: Place | null }) {
   }
 
   return (
-    <div className="pointer-events-none fixed left-6 top-20 z-30">
+    <div className="pointer-events-none fixed left-6 top-[88px] z-30 max-w-[calc(100vw-2rem)]">
       <AnimatePresence>
         {place && (
           <motion.div
@@ -103,7 +103,7 @@ export default function HoveredPlaceCard({ place }: { place: Place | null }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -10 }}
             transition={{ duration: 0.2 }}
-            className="min-w-[220px] rounded-md border border-paper-3 bg-paper/95 px-3 py-2 shadow-md backdrop-blur-md"
+            className="min-w-[220px] max-w-[280px] rounded-md border border-paper-3 bg-paper/95 px-3 py-2 shadow-md backdrop-blur-md"
           >
             <div className="text-[9px] uppercase tracking-[0.3em] text-ink-faint">
               {place.country}

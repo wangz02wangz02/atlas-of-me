@@ -82,23 +82,22 @@ export default function PhotoGallery({
             onClick={() => setOpen(null)}
           >
             <motion.div
-              className="relative max-h-[88vh] w-full max-w-5xl"
+              className="relative flex max-h-[92vh] max-w-[94vw] flex-col items-center"
               initial={{ scale: 0.96, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.98, opacity: 0 }}
               transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative aspect-[16/10] w-full overflow-hidden rounded-lg border border-paper-3 bg-paper">
-                <Image
-                  src={photos[open].src}
-                  alt={photos[open].alt}
-                  fill
-                  sizes="100vw"
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
+              <Image
+                src={photos[open].src}
+                alt={photos[open].alt}
+                width={1800}
+                height={1200}
+                sizes="94vw"
+                className="block max-h-[88vh] w-auto rounded-lg border border-paper-3 bg-paper object-contain shadow-2xl"
+                unoptimized
+              />
               <button
                 type="button"
                 onClick={() => setOpen(null)}

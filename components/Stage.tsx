@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import Globe from "./Globe";
 import WorldMap from "./WorldMap";
@@ -16,7 +16,7 @@ type View = "globe" | "flat";
 
 const DEFAULT_LAYERS: Layers = {
   trail: true,
-  dayNight: true,
+  dayNight: false,
   clocks: false,
   landmarks: false,
 };
@@ -30,6 +30,15 @@ export default function Stage({ places }: { places: Place[] }) {
   const [layers, setLayers] = useState<Layers>(DEFAULT_LAYERS);
   const [center, setCenter] = useState<[number, number]>(CONTINENT_VIEW.All.center);
   const [zoom, setZoom] = useState<number>(CONTINENT_VIEW.All.zoom);
+  const overlayScrollRef = useRef<HTMLDivElement>(null);
+
+  // Whenever a new place is opened, reset the modal scroll to the top
+  useEffect(() => {
+    if (!openSlug) return;
+    requestAnimationFrame(() => {
+      overlayScrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    });
+  }, [openSlug]);
 
   const placesByCountry = useMemo(() => {
     const m = new Map<string, Place>();
@@ -52,7 +61,14 @@ export default function Stage({ places }: { places: Place[] }) {
       if (e.key === "Escape") setOpenSlug(null);
     };
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    // Lock body scroll while overlay is open so the page underneath
+    // doesn't show through and the user can't be "at the bottom" anymore.
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prevOverflow;
+    };
   }, [openSlug]);
 
   // When the user scrubs the timeline, fly to that stop
@@ -254,6 +270,7 @@ export default function Stage({ places }: { places: Place[] }) {
         {openPlace && (
           <motion.div
             key={openPlace.slug}
+            ref={overlayScrollRef}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}

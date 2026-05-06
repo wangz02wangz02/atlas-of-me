@@ -259,29 +259,45 @@ const GlobeSVG = memo(function GlobeSVG({
 
       {showRoute && trailPoints.length > 1 && (
         <g pointerEvents="none">
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.18)" width={4.5} />
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.85)" width={1.1} />
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.10)" width={3.6} />
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.55)" width={0.9} />
         </g>
       )}
 
-      {showRoute &&
-        legs.slice(0, visibleLegCount).map((leg) => {
+      {showRoute && (() => {
+        // Slugs of cities in the currently hovered country — used to
+        // highlight just that country's incoming/outgoing routes
+        const hoveredSlugs = new Set<string>();
+        if (hoveredCountry) {
+          for (const p of places) {
+            if (p.country.toLowerCase() === hoveredCountry.toLowerCase()) {
+              hoveredSlugs.add(p.slug);
+            }
+          }
+        }
+        return legs.slice(0, visibleLegCount).map((leg) => {
           const style = MODE_STYLE[leg.mode];
           const isCurrent = legsThrough === leg.index;
+          const isConnected =
+            hoveredSlugs.size > 0 &&
+            (hoveredSlugs.has(leg.from) || hoveredSlugs.has(leg.to));
+          const op = isCurrent ? 0.95 : isConnected ? 0.85 : 0.08;
+          const w = isCurrent ? style.width + 0.6 : isConnected ? 1 : 0.4;
           return (
             <Line
               key={leg.index}
               from={leg.fromCoord}
               to={leg.toCoord}
-              stroke={style.color}
-              strokeWidth={isCurrent ? style.width + 0.6 : 0.5}
-              strokeOpacity={isCurrent ? 0.9 : 0.18}
+              stroke={isConnected || isCurrent ? style.color : "#a3854a"}
+              strokeWidth={w}
+              strokeOpacity={op}
               strokeLinecap="round"
               strokeDasharray={style.dash === "0" ? undefined : style.dash}
               fill="none"
             />
           );
-        })}
+        });
+      })()}
 
       {/* Focus pulse on current scrubbed stop */}
       {focusedPlace && visibleByPlace.get(focusedPlace.slug) && (
