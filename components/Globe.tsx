@@ -75,12 +75,13 @@ function subsolarPoint(date: Date): [number, number] {
 }
 
 function heatColor(t: number): string {
-  // Pale cream → deep amber.  t ∈ [0, 1].
-  const tt = Math.max(0, Math.min(1, t));
-  // mix between #f0e3ca (240, 227, 202) and #9a4a28 (154, 74, 40)
-  const r = Math.round(240 + (154 - 240) * tt);
-  const g = Math.round(227 + (74 - 227) * tt);
-  const b = Math.round(202 + (40 - 202) * tt);
+  // Pale cream → soft amber.  t ∈ [0, 1].  Cap at 0.85 so the hottest
+  // country stays in the amber family instead of going rust-red.
+  const tt = Math.max(0, Math.min(0.85, t));
+  // mix between #f0e3ca (240, 227, 202) and #b6803a (182, 128, 58)
+  const r = Math.round(240 + (182 - 240) * tt);
+  const g = Math.round(227 + (128 - 227) * tt);
+  const b = Math.round(202 + (58 - 202) * tt);
   return `rgb(${r}, ${g}, ${b})`;
 }
 
@@ -638,6 +639,7 @@ function GlobeImpl({
         onCountryHover?.(null);
       }}
     >
+      {/* Soft halo (drawn outside the clipped SVG so it isn't trimmed) */}
       <div
         className="pointer-events-none absolute inset-0 rounded-full"
         style={{
@@ -646,6 +648,8 @@ function GlobeImpl({
         }}
       />
 
+      {/* Clip the SVG to a circle so zoomed-in content never reads as a square */}
+      <div className="absolute inset-0 overflow-hidden rounded-full">
       <GlobeSVG
         places={places}
         rotate={rotate}
@@ -667,6 +671,7 @@ function GlobeImpl({
         onMarkerEnter={onMarkerEnter}
         onMarkerLeave={onMarkerLeave}
       />
+      </div>
 
       {/* Tooltip lives in its own DOM node — its position is updated via
           a ref so SVG paths never re-render on cursor movement. */}

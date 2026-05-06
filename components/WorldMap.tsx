@@ -64,10 +64,10 @@ function subsolarPoint(date: Date): [number, number] {
 }
 
 function heatColor(t: number): string {
-  const tt = Math.max(0, Math.min(1, t));
-  const r = Math.round(240 + (154 - 240) * tt);
-  const g = Math.round(227 + (74 - 227) * tt);
-  const b = Math.round(202 + (40 - 202) * tt);
+  const tt = Math.max(0, Math.min(0.85, t));
+  const r = Math.round(240 + (182 - 240) * tt);
+  const g = Math.round(227 + (128 - 227) * tt);
+  const b = Math.round(202 + (58 - 202) * tt);
   return `rgb(${r}, ${g}, ${b})`;
 }
 

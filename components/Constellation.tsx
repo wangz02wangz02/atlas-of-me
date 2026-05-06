@@ -411,6 +411,7 @@ function ConstellationImpl({
         onCountryHover?.(null);
       }}
     >
+      <div className="absolute inset-0 overflow-hidden rounded-full">
       <ConstellationSVG
         places={places}
         rotate={rotate}
@@ -422,6 +423,7 @@ function ConstellationImpl({
         onCountryEnter={onCountryEnter}
         onCountryClick={onCountryClickInner}
       />
+      </div>
 
       <AnimatePresence>
         {hoveredCountry && (

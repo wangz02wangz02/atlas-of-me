@@ -197,7 +197,7 @@ export default function Stage({ places }: { places: Place[] }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.99 }}
               transition={{ duration: 0.32 }}
-              className="w-[min(96vw,1280px)]"
+              className="w-[min(78vw,1040px)]"
             >
               <WorldMap
                 places={places}
