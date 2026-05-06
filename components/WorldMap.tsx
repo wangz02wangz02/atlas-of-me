@@ -21,7 +21,11 @@ import {
 import { geoCircle, geoInterpolate } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
-import { getResolvedLegs, MODE_STYLE } from "@/lib/places";
+import {
+  getResolvedLegs,
+  MODE_STYLE,
+  getCountryMemoryDensity,
+} from "@/lib/places";
 import LandmarkLayer from "./LandmarkLayer";
 
 const GEO_URL = "/geo/countries-110m.json";
@@ -39,6 +43,7 @@ type Props = {
   showTerminator?: boolean;
   showClocks?: boolean;
   showLandmarks?: boolean;
+  showHeatmap?: boolean;
   legsThrough?: number | null;
   focusedSlug?: string | null;
   placeSlugs?: Set<string>;
@@ -56,6 +61,14 @@ function subsolarPoint(date: Date): [number, number] {
   const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60;
   const lon = -((utcHours - 12) * 15);
   return [lon, decl];
+}
+
+function heatColor(t: number): string {
+  const tt = Math.max(0, Math.min(1, t));
+  const r = Math.round(240 + (154 - 240) * tt);
+  const g = Math.round(227 + (74 - 227) * tt);
+  const b = Math.round(202 + (40 - 202) * tt);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function NightShade({ now }: { now: number }) {
@@ -120,6 +133,7 @@ const MapBody = memo(function MapBody({
   showTerminator,
   showClocks,
   showLandmarks,
+  showHeatmap,
   legsThrough,
   focusedSlug,
   zoom,
@@ -137,6 +151,7 @@ const MapBody = memo(function MapBody({
   showTerminator: boolean;
   showClocks: boolean;
   showLandmarks: boolean;
+  showHeatmap: boolean;
   legsThrough: number | null;
   focusedSlug: string | null;
   zoom: number;
@@ -151,6 +166,10 @@ const MapBody = memo(function MapBody({
     for (const p of places) m.set(p.country.toLowerCase(), p);
     return m;
   }, [places]);
+  const heatByCountry = useMemo(
+    () => (showHeatmap ? getCountryMemoryDensity(places) : new Map<string, number>()),
+    [places, showHeatmap],
+  );
   const legs = useMemo(() => getResolvedLegs(), []);
   const visibleLegCount = legsThrough ?? legs.length;
   const trailPoints = useMemo(() => {
@@ -197,11 +216,14 @@ const MapBody = memo(function MapBody({
             const isMarkerHi = hoveredMarkerCountry !== null && name.toLowerCase() === hoveredMarkerCountry.toLowerCase();
             const isCountryHi = hoveredCountry !== null && name === hoveredCountry;
             const isHi = isMarkerHi || isCountryHi;
+            const heat = showHeatmap ? heatByCountry.get(name) ?? 0 : 0;
             const fill = isHi
               ? "url(#flat-land-hi)"
-              : hasPlace
-                ? "url(#flat-land-place)"
-                : "url(#flat-land)";
+              : showHeatmap && heat > 0
+                ? heatColor(heat)
+                : hasPlace
+                  ? "url(#flat-land-place)"
+                  : "url(#flat-land)";
             return (
               <Geography
                 key={geo.rsmKey}
@@ -375,6 +397,7 @@ export default function WorldMap({
   showTerminator = false,
   showClocks = false,
   showLandmarks = false,
+  showHeatmap = false,
   legsThrough = null,
   focusedSlug = null,
   placeSlugs,
@@ -505,6 +528,7 @@ export default function WorldMap({
                 showTerminator={showTerminator}
                 showClocks={showClocks}
                 showLandmarks={showLandmarks}
+                showHeatmap={showHeatmap}
                 legsThrough={legsThrough}
                 focusedSlug={focusedSlug}
                 zoom={zoom}

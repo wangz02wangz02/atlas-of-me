@@ -131,6 +131,27 @@ export function getResolvedLegs(): Array<
   }));
 }
 
+/**
+ * Per-country memory-density score in [0, 1].  Combines visits, photo count,
+ * journal length, and whether real photos are attached.  Used by the heatmap.
+ */
+export function getCountryMemoryDensity(places: Place[]): Map<string, number> {
+  const raw = new Map<string, number>();
+  for (const p of places) {
+    const stops = p.stops?.length ?? 1;
+    const photos = p.photos?.length ?? 0;
+    const journal = (p.journal?.length ?? 0) / 600;
+    const score =
+      stops * 3 + photos * 1.5 + journal + (p.hasRealPhotos ? 4 : 0);
+    raw.set(p.country, (raw.get(p.country) ?? 0) + score);
+  }
+  let max = 1;
+  for (const v of raw.values()) if (v > max) max = v;
+  const out = new Map<string, number>();
+  for (const [k, v] of raw) out.set(k, v / max);
+  return out;
+}
+
 export type Connection = {
   stop: number;
   arrival: { fromSlug: string; mode: TransportMode } | null;

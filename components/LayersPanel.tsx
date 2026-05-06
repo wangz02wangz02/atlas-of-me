@@ -5,6 +5,7 @@ export type Layers = {
   dayNight: boolean;
   clocks: boolean;
   landmarks: boolean;
+  heatmap: boolean;
 };
 
 const LAYER_DEFS: Array<{
@@ -16,6 +17,11 @@ const LAYER_DEFS: Array<{
     key: "trail",
     label: "Light trail",
     hint: "Amber filament tracing the journey",
+  },
+  {
+    key: "heatmap",
+    label: "Memory heatmap",
+    hint: "Tint each country by visits + photos + journal density",
   },
   {
     key: "dayNight",

@@ -21,7 +21,12 @@ import {
 import { geoCircle, geoInterpolate } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
-import { MODE_STYLE, getResolvedLegs, CITIES } from "@/lib/places";
+import {
+  MODE_STYLE,
+  getResolvedLegs,
+  CITIES,
+  getCountryMemoryDensity,
+} from "@/lib/places";
 import LandmarkLayer from "./LandmarkLayer";
 
 const GEO_URL = "/geo/countries-110m.json";
@@ -33,6 +38,7 @@ type Props = {
   showTerminator?: boolean;
   showClocks?: boolean;
   showLandmarks?: boolean;
+  showHeatmap?: boolean;
   legsThrough?: number | null;
   size?: number;
   placeSlugs?: Set<string>;
@@ -68,6 +74,16 @@ function subsolarPoint(date: Date): [number, number] {
   return [lon, decl];
 }
 
+function heatColor(t: number): string {
+  // Pale cream → deep amber.  t ∈ [0, 1].
+  const tt = Math.max(0, Math.min(1, t));
+  // mix between #f0e3ca (240, 227, 202) and #9a4a28 (154, 74, 40)
+  const r = Math.round(240 + (154 - 240) * tt);
+  const g = Math.round(227 + (74 - 227) * tt);
+  const b = Math.round(202 + (40 - 202) * tt);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 function NightTerminator({ now, strength = 0.16 }: { now: number; strength?: number }) {
   const { path } = useMapContext() as { path: (g: unknown) => string | null };
   const d = useMemo(() => {
@@ -100,6 +116,7 @@ const GlobeSVG = memo(function GlobeSVG({
   showTerminator,
   showLandmarks,
   showClocks,
+  showHeatmap,
   legsThrough,
   focusedSlug,
   nowMs,
@@ -119,6 +136,7 @@ const GlobeSVG = memo(function GlobeSVG({
   showTerminator: boolean;
   showLandmarks: boolean;
   showClocks: boolean;
+  showHeatmap: boolean;
   legsThrough: number | null;
   focusedSlug: string | null;
   nowMs: number;
@@ -132,6 +150,10 @@ const GlobeSVG = memo(function GlobeSVG({
     for (const p of places) m.set(p.country.toLowerCase(), p);
     return m;
   }, [places]);
+  const heatByCountry = useMemo(
+    () => (showHeatmap ? getCountryMemoryDensity(places) : new Map<string, number>()),
+    [places, showHeatmap],
+  );
 
   const visibleByPlace = useMemo(() => {
     const m = new Map<string, boolean>();
@@ -219,11 +241,14 @@ const GlobeSVG = memo(function GlobeSVG({
             const isMarkerHi = hoveredMarkerCountry !== null && name.toLowerCase() === hoveredMarkerCountry.toLowerCase();
             const isCountryHi = hoveredCountry !== null && name === hoveredCountry;
             const isHi = isMarkerHi || isCountryHi;
+            const heat = showHeatmap ? heatByCountry.get(name) ?? 0 : 0;
             const fill = isHi
               ? "url(#land-highlight)"
-              : hasPlace
-                ? "url(#land-place)"
-                : "url(#land)";
+              : showHeatmap && heat > 0
+                ? heatColor(heat)
+                : hasPlace
+                  ? "url(#land-place)"
+                  : "url(#land)";
             return (
               <Geography
                 key={geo.rsmKey}
@@ -467,6 +492,7 @@ function GlobeImpl({
   showTerminator = true,
   showClocks = false,
   showLandmarks = false,
+  showHeatmap = false,
   legsThrough = null,
   size = 520,
   placeSlugs,
@@ -632,6 +658,7 @@ function GlobeImpl({
         showTerminator={showTerminator}
         showClocks={showClocks}
         showLandmarks={showLandmarks}
+        showHeatmap={showHeatmap}
         legsThrough={legsThrough}
         focusedSlug={focusedSlug}
         nowMs={nowMs}
