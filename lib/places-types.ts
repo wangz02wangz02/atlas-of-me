@@ -24,6 +24,8 @@ export type Place = {
   tagline: string;
   journal: string;
   photos: { src: string; alt: string }[];
+  /** True when /public/places/{slug}/ has actual photos; false → use placeholder UI. */
+  hasRealPhotos: boolean;
   audio?: { src?: string; durationLabel?: string };
 };
 

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import Image from "next/image";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, type Variants } from "motion/react";
 import type { Place, TransportMode } from "@/lib/places-types";
@@ -22,8 +21,8 @@ const fade: Variants = {
     opacity: 1,
     y: 0,
     transition: {
-      duration: 0.6,
-      delay: i * 0.08,
+      duration: 0.55,
+      delay: i * 0.07,
       ease: [0.22, 1, 0.36, 1] as [number, number, number, number],
     },
   }),
@@ -37,9 +36,21 @@ const MODE_GLYPH: Record<TransportMode, string> = {
   bus: "▦",
 };
 
-export default function PlaceDetailClient({ place }: { place: Place }) {
+type Props = {
+  place: Place;
+  /** When true, renders without the route's chrome (overlay mode). */
+  asOverlay?: boolean;
+  /** Optional close-handler used in overlay mode. */
+  onClose?: () => void;
+};
+
+export default function PlaceDetailClient({
+  place,
+  asOverlay = false,
+  onClose,
+}: Props) {
   const [galleryMode, setGalleryMode] = useState<"grid" | "polaroid">("grid");
-  const hero = place.photos[0];
+  const [journalDraft, setJournalDraft] = useState<string>("");
   const totalStops = LEGS.length + 1;
   const connections = getConnectionsForCity(place.slug);
   const { prev, next, prevMode, nextMode } = getNeighborsForCity(place.slug);
@@ -47,321 +58,345 @@ export default function PlaceDetailClient({ place }: { place: Place }) {
   const nextCity = next ? CITIES[next] : null;
   const isHub = place.stops.length > 1;
 
+  // Load any persisted draft for this place
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = window.localStorage.getItem(`journal:${place.slug}`);
+      setJournalDraft(saved ?? "");
+    } catch {
+      /* noop */
+    }
+  }, [place.slug]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      if (journalDraft) {
+        window.localStorage.setItem(`journal:${place.slug}`, journalDraft);
+      } else {
+        window.localStorage.removeItem(`journal:${place.slug}`);
+      }
+    } catch {
+      /* noop */
+    }
+  }, [journalDraft, place.slug]);
+
   return (
-    <article className="relative">
-      {/* Top bar */}
-      <div className="border-b border-ink-3 bg-ink/70 backdrop-blur-md">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3 text-[10px] uppercase tracking-[0.22em] text-bone-dim">
-          <Link href="/" className="transition hover:text-amber">
-            ← back to atlas
-          </Link>
-          <span className="font-mono">
-            stop {place.firstStop} of {totalStops}
-            {isHub && ` · ${place.stops.length}× visited`}
-          </span>
-        </div>
-      </div>
-
-      {/* Hero */}
-      <div className="relative h-[60vh] min-h-[420px] w-full overflow-hidden">
-        <motion.div
-          initial={{ scale: 1.08, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute inset-0"
-        >
-          <Image
-            src={hero.src}
-            alt={hero.alt}
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-            unoptimized
-          />
-        </motion.div>
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/70 via-ink/40 to-ink" />
-        {/* Stop badge */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-          className="absolute left-1/2 top-8 z-10 -translate-x-1/2"
-        >
-          <div className="flex items-baseline gap-3 rounded-full border border-amber/30 bg-ink-2/70 px-4 py-1.5 backdrop-blur-md">
-            <span className="text-[9px] uppercase tracking-[0.32em] text-amber">
-              stop
-            </span>
-            <span className="font-display text-2xl tabular-nums text-bone">
-              {place.firstStop.toString().padStart(2, "0")}
-            </span>
-            <span className="text-[9px] uppercase tracking-[0.32em] text-bone-dim">
-              of {totalStops}
+    <article className="relative bg-paper text-ink">
+      {/* Top bar — only for the standalone route */}
+      {!asOverlay && (
+        <div className="border-b border-paper-3 bg-paper/90 backdrop-blur-md">
+          <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-3 text-[10px] uppercase tracking-[0.22em] text-ink-faint">
+            <Link href="/" className="transition hover:text-amber">
+              ← back to atlas
+            </Link>
+            <span className="font-mono">
+              stop {place.firstStop} of {totalStops}
+              {isHub && ` · ${place.stops.length}× visited`}
             </span>
           </div>
-        </motion.div>
-
-        <div className="relative z-10 mx-auto flex h-full max-w-5xl flex-col justify-end px-6 pb-12">
-          <motion.div
-            initial="hidden"
-            animate="show"
-            custom={0}
-            variants={fade}
-            className="text-[10px] uppercase tracking-[0.3em] text-amber"
-          >
-            {place.continent} · {place.country}
-          </motion.div>
-          <motion.h1
-            initial="hidden"
-            animate="show"
-            custom={1}
-            variants={fade}
-            className="mt-3 font-display text-6xl leading-[1.05] text-bone sm:text-8xl"
-          >
-            {place.name}
-          </motion.h1>
-          <motion.p
-            initial="hidden"
-            animate="show"
-            custom={2}
-            variants={fade}
-            className="mt-4 max-w-xl font-display text-2xl italic text-bone/85"
-          >
-            &ldquo;{place.tagline}&rdquo;
-          </motion.p>
         </div>
-      </div>
+      )}
 
-      <div className="mx-auto max-w-5xl px-6 pb-24">
-        {/* Audio player floats up over the hero */}
-        <motion.div
-          initial="hidden"
-          animate="show"
-          custom={3}
-          variants={fade}
-          className="-mt-10 mb-16"
-        >
-          <AudioPlayer
-            src={place.audio?.src}
-            durationLabel={place.audio?.durationLabel}
-          />
-        </motion.div>
-
-        {/* Two-column on wide screens: journal + side aside */}
-        <div className="grid gap-12 lg:grid-cols-[1.4fr_1fr]">
-          {/* Journal */}
-          <motion.div
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-100px" }}
-            custom={0}
-            variants={fade}
-            className="prose-journal"
-          >
-            {place.journal.split(/\n\n+/).map((para, i) => (
-              <p
-                key={i}
-                className={
-                  i === 0
-                    ? "font-display text-2xl leading-relaxed text-bone first-letter:mr-2 first-letter:float-left first-letter:font-display first-letter:text-7xl first-letter:leading-[0.85] first-letter:text-amber"
-                    : "mt-6 text-lg leading-relaxed text-bone/85"
-                }
+      <div className={asOverlay ? "px-6 pb-16 pt-8" : "px-6 py-12"}>
+        <div className="mx-auto max-w-5xl">
+          {/* Title block — masthead */}
+          <header className="border-b border-paper-3 pb-8">
+            <motion.div
+              initial="hidden"
+              animate="show"
+              custom={0}
+              variants={fade}
+              className="flex items-baseline justify-between text-[10px] uppercase tracking-[0.3em] text-ink-faint"
+            >
+              <span>{place.continent} · {place.country}</span>
+              <span className="font-mono">
+                stop {place.firstStop} / {totalStops}
+                {isHub && ` · ×${place.stops.length}`}
+              </span>
+            </motion.div>
+            <motion.h1
+              initial="hidden"
+              animate="show"
+              custom={1}
+              variants={fade}
+              className="mt-3 font-display text-6xl leading-[1.02] text-ink sm:text-8xl"
+            >
+              {place.name}
+            </motion.h1>
+            <motion.p
+              initial="hidden"
+              animate="show"
+              custom={2}
+              variants={fade}
+              className="mt-3 font-display text-2xl italic text-ink-soft"
+            >
+              &ldquo;{place.tagline}&rdquo;
+            </motion.p>
+            {asOverlay && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label="Close place"
+                className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-paper-3 bg-paper text-ink-faint shadow-sm transition hover:text-amber"
               >
-                {para}
-              </p>
-            ))}
+                ✕
+              </button>
+            )}
+          </header>
+
+          {/* Audio reflection */}
+          <motion.div
+            initial="hidden"
+            animate="show"
+            custom={3}
+            variants={fade}
+            className="mt-8"
+          >
+            <AudioPlayer
+              src={place.audio?.src}
+              durationLabel={place.audio?.durationLabel}
+            />
           </motion.div>
 
-          {/* Aside: city ID card + connections */}
-          <motion.aside
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: "-50px" }}
-            custom={1}
-            variants={fade}
-            className="space-y-6 lg:sticky lg:top-6 lg:self-start"
-          >
-            <div className="rounded-lg border border-ink-3 bg-ink-2/40 p-5">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-bone-dim">
-                Coordinates
-              </div>
-              <div className="mt-1 font-mono text-sm text-bone/85">
-                {place.coordinates[1].toFixed(4)}°,{" "}
-                {place.coordinates[0].toFixed(4)}°
-              </div>
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-ink-3 pt-4 text-[10px] uppercase tracking-[0.2em]">
-                <div>
-                  <div className="text-bone-dim">Country</div>
-                  <div className="mt-0.5 normal-case tracking-normal text-bone">
-                    {place.country}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-bone-dim">Continent</div>
-                  <div className="mt-0.5 normal-case tracking-normal text-bone">
-                    {place.continent}
-                  </div>
-                </div>
-              </div>
-            </div>
+          {/* Two-column: journal + sidebar */}
+          <div className="mt-12 grid gap-12 lg:grid-cols-[1.4fr_1fr]">
+            <motion.div
+              initial="hidden"
+              animate="show"
+              custom={4}
+              variants={fade}
+              className="prose-journal"
+            >
+              {place.journal.split(/\n\n+/).map((para, i) => (
+                <p
+                  key={i}
+                  className={
+                    i === 0
+                      ? "font-display text-2xl leading-relaxed text-ink first-letter:mr-2 first-letter:float-left first-letter:font-display first-letter:text-7xl first-letter:leading-[0.85] first-letter:text-amber"
+                      : "mt-6 text-lg leading-relaxed text-ink-soft"
+                  }
+                >
+                  {para}
+                </p>
+              ))}
 
-            <div className="rounded-lg border border-ink-3 bg-ink-2/40 p-5">
-              <div className="mb-3 flex items-baseline justify-between">
-                <h3 className="text-[10px] uppercase tracking-[0.3em] text-bone-dim">
-                  Connections
-                </h3>
-                <span className="text-[10px] uppercase tracking-[0.22em] text-bone-dim">
-                  {place.stops.length}{" "}
-                  {place.stops.length === 1 ? "visit" : "visits"}
-                </span>
+              {/* Journal entry */}
+              <div className="mt-12 border-t border-paper-3 pt-6">
+                <div className="mb-2 flex items-baseline justify-between">
+                  <h3 className="text-[10px] uppercase tracking-[0.3em] text-ink-faint">
+                    Add a journal entry
+                  </h3>
+                  <span className="text-[10px] text-ink-faint">
+                    {journalDraft.length > 0 ? "saved locally" : "draft"}
+                  </span>
+                </div>
+                <textarea
+                  value={journalDraft}
+                  onChange={(e) => setJournalDraft(e.target.value)}
+                  placeholder={`Write about ${place.name}…`}
+                  rows={6}
+                  className="block w-full resize-y rounded-md border border-paper-3 bg-paper-2/40 p-3 font-display text-lg italic text-ink placeholder:text-ink-faint/70 focus:border-amber focus:outline-none focus:ring-0"
+                />
               </div>
-              <ul className="space-y-3 text-sm">
-                {connections.map((c) => (
-                  <li
-                    key={c.stop}
-                    className="grid grid-cols-[auto_1fr] items-center gap-x-3 border-l-2 border-amber/30 pl-3"
-                  >
-                    <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-amber">
-                      #{c.stop}
-                    </span>
-                    <div className="space-y-0.5">
-                      {c.arrival ? (
-                        <ConnectionRow
-                          arrow="←"
-                          slug={c.arrival.fromSlug}
-                          mode={c.arrival.mode}
-                          label="from"
-                        />
-                      ) : (
-                        <div className="text-[11px] uppercase tracking-[0.2em] text-bone-dim/70">
-                          (journey begins)
-                        </div>
-                      )}
-                      {c.departure ? (
-                        <ConnectionRow
-                          arrow="→"
-                          slug={c.departure.toSlug}
-                          mode={c.departure.mode}
-                          label="to"
-                        />
-                      ) : (
-                        <div className="text-[11px] uppercase tracking-[0.2em] text-bone-dim/70">
-                          (journey ends)
-                        </div>
-                      )}
+            </motion.div>
+
+            <motion.aside
+              initial="hidden"
+              animate="show"
+              custom={5}
+              variants={fade}
+              className="space-y-6 lg:sticky lg:top-6 lg:self-start"
+            >
+              <div className="rounded-md border border-paper-3 bg-paper-2/40 p-5">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-ink-faint">
+                  Coordinates
+                </div>
+                <div className="mt-1 font-mono text-sm text-ink">
+                  {place.coordinates[1].toFixed(4)}°,{" "}
+                  {place.coordinates[0].toFixed(4)}°
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-3 border-t border-paper-3 pt-4 text-[10px] uppercase tracking-[0.2em]">
+                  <div>
+                    <div className="text-ink-faint">Country</div>
+                    <div className="mt-0.5 normal-case tracking-normal text-ink">
+                      {place.country}
                     </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </motion.aside>
-        </div>
+                  </div>
+                  <div>
+                    <div className="text-ink-faint">Continent</div>
+                    <div className="mt-0.5 normal-case tracking-normal text-ink">
+                      {place.continent}
+                    </div>
+                  </div>
+                </div>
+              </div>
 
-        {/* Photographs — full width below */}
-        <motion.div
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: "-50px" }}
-          custom={1}
-          variants={fade}
-          className="mt-20"
-        >
-          <div className="mb-5 flex items-baseline justify-between">
-            <h2 className="text-[10px] uppercase tracking-[0.3em] text-bone-dim">
-              Photographs
-            </h2>
-            <div className="inline-flex rounded-full border border-ink-3 p-0.5">
-              {(["grid", "polaroid"] as const).map((m) => {
-                const active = galleryMode === m;
-                return (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setGalleryMode(m)}
-                    className={`rounded-full px-3 py-1 text-xs transition ${
-                      active
-                        ? "bg-amber/15 text-amber"
-                        : "text-bone-dim hover:text-bone"
-                    }`}
-                  >
-                    {m === "grid" ? "Grid" : "Polaroid"}
-                  </button>
-                );
-              })}
-            </div>
+              <div className="rounded-md border border-paper-3 bg-paper-2/40 p-5">
+                <div className="mb-3 flex items-baseline justify-between">
+                  <h3 className="text-[10px] uppercase tracking-[0.3em] text-ink-faint">
+                    Connections
+                  </h3>
+                  <span className="text-[10px] uppercase tracking-[0.22em] text-ink-faint">
+                    {place.stops.length}{" "}
+                    {place.stops.length === 1 ? "visit" : "visits"}
+                  </span>
+                </div>
+                <ul className="space-y-3 text-sm">
+                  {connections.map((c) => (
+                    <li
+                      key={c.stop}
+                      className="grid grid-cols-[auto_1fr] items-center gap-x-3 border-l-2 border-amber/30 pl-3"
+                    >
+                      <span className="font-mono text-[10px] uppercase tracking-[0.22em] text-amber">
+                        #{c.stop}
+                      </span>
+                      <div className="space-y-0.5">
+                        {c.arrival ? (
+                          <ConnectionRow
+                            arrow="←"
+                            slug={c.arrival.fromSlug}
+                            mode={c.arrival.mode}
+                            label="from"
+                          />
+                        ) : (
+                          <div className="text-[11px] uppercase tracking-[0.2em] text-ink-faint/70">
+                            (journey begins)
+                          </div>
+                        )}
+                        {c.departure ? (
+                          <ConnectionRow
+                            arrow="→"
+                            slug={c.departure.toSlug}
+                            mode={c.departure.mode}
+                            label="to"
+                          />
+                        ) : (
+                          <div className="text-[11px] uppercase tracking-[0.2em] text-ink-faint/70">
+                            (journey ends)
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.aside>
           </div>
-          {galleryMode === "grid" ? (
-            <PhotoGallery photos={place.photos} />
-          ) : (
-            <PolaroidGallery photos={place.photos} />
-          )}
-        </motion.div>
 
-        {/* Prev / next footer */}
-        <nav className="mt-20 grid grid-cols-1 gap-4 border-t border-ink-3 pt-10 sm:grid-cols-2">
-          {prevCity ? (
-            <Link
-              href={`/places/${prevCity.slug}`}
-              className="group flex items-center gap-3 rounded-md border border-ink-3 bg-ink-2/40 p-4 transition hover:border-amber-dim hover:bg-ink-2"
-            >
-              <span className="text-2xl text-bone-dim transition group-hover:text-amber">
-                ←
-              </span>
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.22em] text-bone-dim">
-                  {prevMode ? (
-                    <>
-                      arrived by{" "}
-                      <span style={{ color: MODE_STYLE[prevMode].color }}>
-                        {MODE_GLYPH[prevMode]} {prevMode}
-                      </span>
-                    </>
-                  ) : (
-                    "previous"
-                  )}
-                </div>
-                <div className="mt-1 font-display text-2xl text-bone group-hover:text-amber">
-                  {prevCity.name}
-                </div>
+          {/* Photographs */}
+          <motion.div
+            initial="hidden"
+            animate="show"
+            custom={6}
+            variants={fade}
+            className="mt-16"
+          >
+            <div className="mb-5 flex items-baseline justify-between">
+              <h2 className="text-[10px] uppercase tracking-[0.3em] text-ink-faint">
+                Photographs
+              </h2>
+              <div className="inline-flex rounded-full border border-paper-3 p-0.5">
+                {(["grid", "polaroid"] as const).map((m) => {
+                  const active = galleryMode === m;
+                  return (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setGalleryMode(m)}
+                      className={`rounded-full px-3 py-1 text-xs transition ${
+                        active
+                          ? "bg-amber/15 text-amber"
+                          : "text-ink-faint hover:text-ink"
+                      }`}
+                    >
+                      {m === "grid" ? "Grid" : "Polaroid"}
+                    </button>
+                  );
+                })}
               </div>
-            </Link>
-          ) : (
-            <div className="rounded-md border border-dashed border-ink-3 p-4 text-[10px] uppercase tracking-[0.22em] text-bone-dim/60">
-              the journey begins here
             </div>
-          )}
-          {nextCity ? (
-            <Link
-              href={`/places/${nextCity.slug}`}
-              className="group flex items-center justify-end gap-3 rounded-md border border-ink-3 bg-ink-2/40 p-4 text-right transition hover:border-amber-dim hover:bg-ink-2"
-            >
-              <div>
-                <div className="text-[10px] uppercase tracking-[0.22em] text-bone-dim">
-                  {nextMode ? (
-                    <>
-                      departed by{" "}
-                      <span style={{ color: MODE_STYLE[nextMode].color }}>
-                        {MODE_GLYPH[nextMode]} {nextMode}
-                      </span>
-                    </>
-                  ) : (
-                    "next"
-                  )}
+            {galleryMode === "grid" ? (
+              <PhotoGallery
+                photos={place.photos}
+                hasReal={place.hasRealPhotos}
+                placeName={place.name}
+              />
+            ) : (
+              <PolaroidGallery
+                photos={place.photos}
+                hasReal={place.hasRealPhotos}
+                placeName={place.name}
+              />
+            )}
+          </motion.div>
+
+          {/* Prev / next */}
+          <nav className="mt-16 grid grid-cols-1 gap-4 border-t border-paper-3 pt-8 sm:grid-cols-2">
+            {prevCity ? (
+              <Link
+                href={`/places/${prevCity.slug}`}
+                className="group flex items-center gap-3 rounded-md border border-paper-3 bg-paper-2/40 p-4 transition hover:border-amber hover:bg-paper-2"
+              >
+                <span className="text-2xl text-ink-faint transition group-hover:text-amber">
+                  ←
+                </span>
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-ink-faint">
+                    {prevMode ? (
+                      <>
+                        arrived by{" "}
+                        <span style={{ color: MODE_STYLE[prevMode].color }}>
+                          {MODE_GLYPH[prevMode]} {prevMode}
+                        </span>
+                      </>
+                    ) : (
+                      "previous"
+                    )}
+                  </div>
+                  <div className="mt-1 font-display text-2xl text-ink group-hover:text-amber">
+                    {prevCity.name}
+                  </div>
                 </div>
-                <div className="mt-1 font-display text-2xl text-bone group-hover:text-amber">
-                  {nextCity.name}
-                </div>
+              </Link>
+            ) : (
+              <div className="rounded-md border border-dashed border-paper-3 p-4 text-[10px] uppercase tracking-[0.22em] text-ink-faint/60">
+                the journey begins here
               </div>
-              <span className="text-2xl text-bone-dim transition group-hover:text-amber">
-                →
-              </span>
-            </Link>
-          ) : (
-            <div className="rounded-md border border-dashed border-ink-3 p-4 text-right text-[10px] uppercase tracking-[0.22em] text-bone-dim/60">
-              the journey ends here
-            </div>
-          )}
-        </nav>
+            )}
+            {nextCity ? (
+              <Link
+                href={`/places/${nextCity.slug}`}
+                className="group flex items-center justify-end gap-3 rounded-md border border-paper-3 bg-paper-2/40 p-4 text-right transition hover:border-amber hover:bg-paper-2"
+              >
+                <div>
+                  <div className="text-[10px] uppercase tracking-[0.22em] text-ink-faint">
+                    {nextMode ? (
+                      <>
+                        departed by{" "}
+                        <span style={{ color: MODE_STYLE[nextMode].color }}>
+                          {MODE_GLYPH[nextMode]} {nextMode}
+                        </span>
+                      </>
+                    ) : (
+                      "next"
+                    )}
+                  </div>
+                  <div className="mt-1 font-display text-2xl text-ink group-hover:text-amber">
+                    {nextCity.name}
+                  </div>
+                </div>
+                <span className="text-2xl text-ink-faint transition group-hover:text-amber">
+                  →
+                </span>
+              </Link>
+            ) : (
+              <div className="rounded-md border border-dashed border-paper-3 p-4 text-right text-[10px] uppercase tracking-[0.22em] text-ink-faint/60">
+                the journey ends here
+              </div>
+            )}
+          </nav>
+        </div>
       </div>
     </article>
   );
@@ -383,12 +418,12 @@ function ConnectionRow({
   return (
     <div className="flex items-baseline gap-2">
       <span className="text-amber">{arrow}</span>
-      <span className="text-[10px] uppercase tracking-[0.18em] text-bone-dim">
+      <span className="text-[10px] uppercase tracking-[0.18em] text-ink-faint">
         {label}
       </span>
       <Link
         href={`/places/${city.slug}`}
-        className="text-bone transition hover:text-amber"
+        className="text-ink transition hover:text-amber"
       >
         {city.name}
       </Link>

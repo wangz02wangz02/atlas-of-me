@@ -35,7 +35,7 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${display.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-ink text-bone selection:bg-amber/40 selection:text-bone">
+      <body className="min-h-full flex flex-col bg-paper text-ink selection:bg-amber/30 selection:text-ink">
         {children}
       </body>
     </html>

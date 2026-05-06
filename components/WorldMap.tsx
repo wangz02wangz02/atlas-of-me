@@ -1,68 +1,433 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ComposableMap,
   Geographies,
   Geography,
   Marker,
   Line,
+  Sphere,
   ZoomableGroup,
+  useMapContext,
 } from "react-simple-maps";
+import { geoCircle, geoInterpolate } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
-import type { Place, Continent } from "@/lib/places-types";
-import { MODE_STYLE, getResolvedLegs } from "@/lib/places";
+import type { Place } from "@/lib/places-types";
+import { getResolvedLegs } from "@/lib/places";
+import LandmarkLayer from "./LandmarkLayer";
 
 const GEO_URL = "/geo/countries-110m.json";
+const TO_RAD = Math.PI / 180;
 
 type Props = {
   places: Place[];
-  filterContinent?: Continent | "All";
   center: [number, number];
   zoom: number;
   showRoute?: boolean;
+  showTerminator?: boolean;
+  showClocks?: boolean;
+  showLandmarks?: boolean;
   legsThrough?: number | null;
+  focusedSlug?: string | null;
+  placeSlugs?: Set<string>;
   onMoveEnd?: (pos: { coordinates: [number, number]; zoom: number }) => void;
+  onCountryHover?: (countryName: string | null) => void;
+  onCountryClick?: (countryName: string) => void;
 };
 
 const PARIS_SLUG = "paris";
 
+function subsolarPoint(date: Date): [number, number] {
+  const start = Date.UTC(date.getUTCFullYear(), 0, 0);
+  const dayOfYear = Math.floor((date.getTime() - start) / 86400000);
+  const decl = 23.45 * Math.sin(((360 * (dayOfYear - 81)) / 365) * TO_RAD);
+  const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60;
+  const lon = -((utcHours - 12) * 15);
+  return [lon, decl];
+}
+
+function NightShade({ now }: { now: number }) {
+  const { path } = useMapContext() as { path: (g: unknown) => string | null };
+  const d = useMemo(() => {
+    const [sunLon, sunLat] = subsolarPoint(new Date(now));
+    const circle = geoCircle()
+      .center([sunLon + 180, -sunLat])
+      .radius(90);
+    return path(circle());
+  }, [path, now]);
+  if (!d) return null;
+  return <path d={d} fill="rgba(31, 54, 64, 0.16)" pointerEvents="none" />;
+}
+
+function Trail({
+  points,
+  color,
+  width,
+}: {
+  points: Array<[number, number]>;
+  color: string;
+  width: number;
+}) {
+  const { projection } = useMapContext() as {
+    projection: (c: [number, number]) => [number, number] | null;
+  };
+  const segments = useMemo(() => {
+    const segs: string[] = [];
+    let current: string[] = [];
+    for (const p of points) {
+      const proj = projection(p);
+      if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
+        if (current.length > 1) segs.push(`M${current.join("L")}`);
+        current = [];
+        continue;
+      }
+      current.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+    }
+    if (current.length > 1) segs.push(`M${current.join("L")}`);
+    return segs.join(" ");
+  }, [points, projection]);
+  if (!segments) return null;
+  return (
+    <path
+      d={segments}
+      fill="none"
+      stroke={color}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  );
+}
+
+const MapBody = memo(function MapBody({
+  places,
+  hoveredCountry,
+  hoveredMarkerCountry,
+  placeSlugs,
+  showRoute,
+  showTerminator,
+  showClocks,
+  showLandmarks,
+  legsThrough,
+  focusedSlug,
+  zoom,
+  nowMs,
+  onCountryEnter,
+  onCountryClick,
+  onMarkerEnter,
+  onMarkerLeave,
+}: {
+  places: Place[];
+  hoveredCountry: string | null;
+  hoveredMarkerCountry: string | null;
+  placeSlugs?: Set<string>;
+  showRoute: boolean;
+  showTerminator: boolean;
+  showClocks: boolean;
+  showLandmarks: boolean;
+  legsThrough: number | null;
+  focusedSlug: string | null;
+  zoom: number;
+  nowMs: number;
+  onCountryEnter: (name: string) => void;
+  onCountryClick: (name: string, hasPlace: boolean) => void;
+  onMarkerEnter: (country: string) => void;
+  onMarkerLeave: () => void;
+}) {
+  const placesByCountry = useMemo(() => {
+    const m = new Map<string, Place>();
+    for (const p of places) m.set(p.country.toLowerCase(), p);
+    return m;
+  }, [places]);
+  const legs = useMemo(() => getResolvedLegs(), []);
+  const visibleLegCount = legsThrough ?? legs.length;
+  const trailPoints = useMemo(() => {
+    const out: Array<[number, number]> = [];
+    const upTo = Math.min(visibleLegCount, legs.length);
+    for (let i = 0; i < upTo; i++) {
+      const leg = legs[i];
+      const interp = geoInterpolate(leg.fromCoord, leg.toCoord);
+      const steps = 18;
+      for (let s = 0; s <= steps; s++) out.push(interp(s / steps));
+    }
+    return out;
+  }, [legs, visibleLegCount]);
+
+  // Marker sizes shrink at low zoom so the cluster doesn't overlap
+  const markerScale = Math.max(0.5, Math.min(1.4, zoom / 2));
+  const focusedPlace = focusedSlug ? places.find((p) => p.slug === focusedSlug) : null;
+
+  // De-dup landmarks visibility map (always-visible on flat)
+  const visibleAll = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const p of places) m.set(p.slug, true);
+    return m;
+  }, [places]);
+
+  return (
+    <>
+      <defs>
+        <linearGradient id="flat-land" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#f0e3ca" />
+          <stop offset="100%" stopColor="#d6bb8a" />
+        </linearGradient>
+        <linearGradient id="flat-land-place" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#f6d8a4" />
+          <stop offset="100%" stopColor="#cb9b56" />
+        </linearGradient>
+        <linearGradient id="flat-land-hi" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#fff2d7" />
+          <stop offset="100%" stopColor="#e7c994" />
+        </linearGradient>
+        <linearGradient id="flat-ocean" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#e1ebef" />
+          <stop offset="100%" stopColor="#c0d5dc" />
+        </linearGradient>
+        <radialGradient id="focus-pulse-flat">
+          <stop offset="0%" stopColor="#9a4a28" stopOpacity="0.85" />
+          <stop offset="60%" stopColor="#9a4a28" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#9a4a28" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      <Sphere id="flat-sphere" fill="url(#flat-ocean)" stroke="none" strokeWidth={0} />
+
+      <Geographies geography={GEO_URL}>
+        {({ geographies }: { geographies: Array<{ rsmKey: string; properties: { name: string } }> }) =>
+          geographies.map((geo) => {
+            const name = geo.properties?.name ?? "";
+            const place = placesByCountry.get(name.toLowerCase());
+            const hasPlace = !!place && (placeSlugs?.has(place.slug) ?? true);
+            const isMarkerHi = hoveredMarkerCountry !== null && name.toLowerCase() === hoveredMarkerCountry.toLowerCase();
+            const isCountryHi = hoveredCountry !== null && name === hoveredCountry;
+            const isHi = isMarkerHi || isCountryHi;
+            const fill = isHi
+              ? "url(#flat-land-hi)"
+              : hasPlace
+                ? "url(#flat-land-place)"
+                : "url(#flat-land)";
+            return (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                onMouseEnter={() => onCountryEnter(name)}
+                onClick={() => onCountryClick(name, hasPlace)}
+                fill={fill}
+                stroke={isHi ? "#9a4a28" : "rgba(122,94,52,0.35)"}
+                strokeWidth={isHi ? 0.6 / zoom : 0.3 / zoom}
+                style={{
+                  default: {
+                    outline: "none",
+                    transition: "fill 220ms",
+                    cursor: hasPlace ? "pointer" : "default",
+                  },
+                  hover: {
+                    fill: "url(#flat-land-hi)",
+                    outline: "none",
+                    cursor: hasPlace ? "pointer" : "default",
+                  },
+                  pressed: {
+                    fill: "url(#flat-land-hi)",
+                    outline: "none",
+                  },
+                }}
+              />
+            );
+          })
+        }
+      </Geographies>
+
+      {showTerminator && <NightShade now={nowMs} />}
+
+      {/* Single calm trail — replaces the loud per-leg colored lines */}
+      {showRoute && trailPoints.length > 1 && (
+        <g pointerEvents="none">
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.18)" width={3 / zoom} />
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.7)" width={0.8 / zoom} />
+        </g>
+      )}
+
+      {/* Focus pulse */}
+      {focusedPlace && (
+        <Marker coordinates={focusedPlace.coordinates}>
+          <g pointerEvents="none">
+            <motion.circle
+              r={18 / zoom}
+              fill="url(#focus-pulse-flat)"
+              initial={{ opacity: 0.9, scale: 0.6 }}
+              animate={{ opacity: [0.9, 0.2, 0.9], scale: [0.6, 1.4, 0.6] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <circle r={2 / zoom} fill="#9a4a28" stroke="#fff" strokeWidth={0.6 / zoom} />
+          </g>
+        </Marker>
+      )}
+
+      {/* Markers — small dots, scale-aware */}
+      {places.map((place) => {
+        const isHub = place.slug === PARIS_SLUG;
+        const r = (isHub ? 3.5 : 2.2) * markerScale;
+        return (
+          <Marker
+            key={place.slug}
+            coordinates={place.coordinates}
+            onMouseEnter={() => onMarkerEnter(place.country)}
+            onMouseLeave={onMarkerLeave}
+            onClick={() => onCountryClick(place.country, true)}
+            style={{
+              default: { cursor: "pointer", outline: "none" },
+              hover: { cursor: "pointer", outline: "none" },
+              pressed: { cursor: "pointer", outline: "none" },
+            }}
+          >
+            <circle
+              r={r}
+              fill={isHub ? "#fde8b8" : "#b6803a"}
+              stroke="#3a2a14"
+              strokeWidth={0.6 / zoom}
+            />
+          </Marker>
+        );
+      })}
+
+      {showClocks && <ClockLayerFlat places={places} nowMs={nowMs} zoom={zoom} />}
+      {showLandmarks && <LandmarkLayer places={places} visibleByPlace={visibleAll} />}
+    </>
+  );
+});
+
+function ClockLayerFlat({
+  places,
+  nowMs,
+  zoom,
+}: {
+  places: Place[];
+  nowMs: number;
+  zoom: number;
+}) {
+  const date = new Date(nowMs);
+  const seen = new Set<string>();
+  const items: Array<{ slug: string; coord: [number, number]; label: string }> = [];
+  for (const p of places) {
+    if (seen.has(p.country)) continue;
+    seen.add(p.country);
+    const offsetH = p.coordinates[0] / 15;
+    const local = new Date(date.getTime() + offsetH * 3600_000);
+    const hh = local.getUTCHours().toString().padStart(2, "0");
+    const mm = local.getUTCMinutes().toString().padStart(2, "0");
+    items.push({ slug: p.slug, coord: p.coordinates, label: `${hh}:${mm}` });
+  }
+  const w = 18 / zoom;
+  const h = 7 / zoom;
+  return (
+    <g pointerEvents="none">
+      {items.map((it) => (
+        <Marker key={`ck-${it.slug}`} coordinates={it.coord}>
+          <g transform={`translate(0, -${10 / zoom})`}>
+            <rect
+              x={-w / 2}
+              y={-h / 2}
+              width={w}
+              height={h}
+              rx={1.5 / zoom}
+              fill="rgba(243,239,231,0.92)"
+              stroke="rgba(122,94,52,0.4)"
+              strokeWidth={0.3 / zoom}
+            />
+            <text
+              y={1.2 / zoom}
+              textAnchor="middle"
+              fontSize={4.6 / zoom}
+              fontFamily="monospace"
+              fill="#1a1a1a"
+            >
+              {it.label}
+            </text>
+          </g>
+        </Marker>
+      ))}
+    </g>
+  );
+}
+
 export default function WorldMap({
   places,
-  filterContinent = "All",
   center,
   zoom,
   showRoute = true,
+  showTerminator = false,
+  showClocks = false,
+  showLandmarks = false,
   legsThrough = null,
+  focusedSlug = null,
+  placeSlugs,
   onMoveEnd,
+  onCountryHover,
+  onCountryClick,
 }: Props) {
-  const router = useRouter();
-  const [hovered, setHovered] = useState<Place | null>(null);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
-  const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [hoveredMarkerCountry, setHoveredMarkerCountry] = useState<string | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
-  const dimmed = useMemo(
-    () =>
-      filterContinent === "All"
-        ? new Set<string>()
-        : new Set(
-            places
-              .filter((p) => p.continent !== filterContinent)
-              .map((p) => p.slug),
-          ),
-    [places, filterContinent],
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const posRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const onMouseMove = useCallback((e: React.MouseEvent) => {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    posRef.current.x = e.clientX - rect.left;
+    posRef.current.y = e.clientY - rect.top;
+    const t = tooltipRef.current;
+    if (t) {
+      t.style.transform = `translate(${posRef.current.x + 14}px, ${
+        posRef.current.y + 14
+      }px)`;
+    }
+  }, []);
+
+  const onCountryEnter = useCallback(
+    (name: string) => {
+      setHoveredCountry(name);
+      onCountryHover?.(name);
+    },
+    [onCountryHover],
   );
+  const onCountryClickInner = useCallback(
+    (name: string, hasPlace: boolean) => {
+      if (hasPlace) onCountryClick?.(name);
+    },
+    [onCountryClick],
+  );
+  const onMarkerEnter = useCallback((country: string) => {
+    setHoveredMarkerCountry(country);
+  }, []);
+  const onMarkerLeave = useCallback(() => setHoveredMarkerCountry(null), []);
 
-  const legs = useMemo(() => getResolvedLegs(), []);
-  const visibleLegCount = legsThrough ?? legs.length;
+  const tooltipName = hoveredMarkerCountry ?? hoveredCountry;
 
   return (
     <div
+      ref={wrapperRef}
       className="relative w-full select-none"
-      onMouseMove={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+      onMouseMove={onMouseMove}
+      onMouseLeave={() => {
+        setHoveredCountry(null);
+        setHoveredMarkerCountry(null);
+        onCountryHover?.(null);
       }}
     >
       <ComposableMap
@@ -72,199 +437,58 @@ export default function WorldMap({
         height={520}
         style={{ width: "100%", height: "auto" }}
       >
-        <defs>
-          <linearGradient id="country-fill" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#2a3340" />
-            <stop offset="100%" stopColor="#1a2230" />
-          </linearGradient>
-          <linearGradient id="country-fill-highlight" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#5a6a7d" />
-            <stop offset="100%" stopColor="#3a4554" />
-          </linearGradient>
-          <radialGradient id="marker-glow">
-            <stop offset="0%" stopColor="#d8a657" stopOpacity="0.85" />
-            <stop offset="55%" stopColor="#d8a657" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#d8a657" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="paris-glow">
-            <stop offset="0%" stopColor="#fff1c2" stopOpacity="0.95" />
-            <stop offset="55%" stopColor="#ff8a4a" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#ff8a4a" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
         <ZoomableGroup
           center={center}
           zoom={zoom}
           minZoom={1}
-          maxZoom={12}
+          maxZoom={14}
           translateExtent={[
-            [-200, -120],
-            [1180, 640],
+            [-220, -140],
+            [1200, 660],
           ]}
           onMoveEnd={onMoveEnd}
         >
-          <Geographies geography={GEO_URL}>
-            {({
-              geographies,
-            }: {
-              geographies: Array<{
-                rsmKey: string;
-                properties: { name: string };
-              }>;
-            }) =>
-              geographies.map((geo) => {
-                const name = geo.properties?.name ?? "";
-                const isMarkerHighlight =
-                  hovered != null &&
-                  name.toLowerCase() === hovered.country.toLowerCase();
-                const isCountryHover =
-                  hoveredCountry !== null &&
-                  name === hoveredCountry &&
-                  !hovered;
-                const isHi = isMarkerHighlight || isCountryHover;
-                return (
-                  <Geography
-                    key={geo.rsmKey}
-                    geography={geo}
-                    onMouseEnter={() => setHoveredCountry(name)}
-                    onMouseLeave={() =>
-                      setHoveredCountry((c) => (c === name ? null : c))
-                    }
-                    fill={
-                      isHi
-                        ? "url(#country-fill-highlight)"
-                        : "url(#country-fill)"
-                    }
-                    stroke={isHi ? "#d8a657" : "#3a4554"}
-                    strokeWidth={isHi ? 0.9 : 0.5}
-                    style={{
-                      default: { outline: "none", transition: "fill 200ms" },
-                      hover: {
-                        fill: "url(#country-fill-highlight)",
-                        outline: "none",
-                      },
-                      pressed: {
-                        fill: "url(#country-fill-highlight)",
-                        outline: "none",
-                      },
-                    }}
-                  />
-                );
-              })
-            }
-          </Geographies>
-
-          {showRoute &&
-            legs.slice(0, visibleLegCount).map((leg) => {
-              const style = MODE_STYLE[leg.mode];
-              const isCurrent = legsThrough === leg.index;
-              return (
-                <Line
-                  key={leg.index}
-                  from={leg.fromCoord}
-                  to={leg.toCoord}
-                  stroke={style.color}
-                  strokeWidth={isCurrent ? style.width + 1 : style.width}
-                  strokeOpacity={isCurrent ? 0.95 : 0.55}
-                  strokeLinecap="round"
-                  strokeDasharray={style.dash === "0" ? undefined : style.dash}
-                  fill="none"
-                />
-              );
-            })}
-
-          {places.map((place) => {
-            const isDim = dimmed.has(place.slug);
-            const isHub = place.slug === PARIS_SLUG;
-            return (
-              <Marker
-                key={place.slug}
-                coordinates={place.coordinates}
-                onMouseEnter={() => setHovered(place)}
-                onMouseLeave={() => setHovered(null)}
-                onClick={() => router.push(`/places/${place.slug}`)}
-                style={{
-                  default: { cursor: "pointer", outline: "none" },
-                  hover: { cursor: "pointer", outline: "none" },
-                  pressed: { cursor: "pointer", outline: "none" },
-                }}
-              >
-                <g
-                  style={{
-                    opacity: isDim ? 0.18 : 1,
-                    transition: "opacity 300ms ease",
-                  }}
-                >
-                  <circle
-                    r={isHub ? 18 : 10}
-                    fill={`url(#${isHub ? "paris-glow" : "marker-glow"})`}
-                  />
-                  <circle
-                    r={isHub ? 5 : 3.2}
-                    fill={isHub ? "#fff1c2" : "#d8a657"}
-                    stroke="#0b0d10"
-                    strokeWidth={1}
-                  />
-                </g>
-              </Marker>
-            );
-          })}
+          <MapBody
+            places={places}
+            hoveredCountry={hoveredCountry}
+            hoveredMarkerCountry={hoveredMarkerCountry}
+            placeSlugs={placeSlugs}
+            showRoute={showRoute}
+            showTerminator={showTerminator}
+            showClocks={showClocks}
+            showLandmarks={showLandmarks}
+            legsThrough={legsThrough}
+            focusedSlug={focusedSlug}
+            zoom={zoom}
+            nowMs={nowMs}
+            onCountryEnter={onCountryEnter}
+            onCountryClick={onCountryClickInner}
+            onMarkerEnter={onMarkerEnter}
+            onMarkerLeave={onMarkerLeave}
+          />
         </ZoomableGroup>
       </ComposableMap>
 
-      {/* Marker hover card (priority) */}
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            key={`m-${hovered.slug}`}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute z-20 hidden md:block"
-            style={{
-              left: Math.min(pos.x + 16, 9999),
-              top: Math.max(pos.y - 10, 0),
-            }}
-          >
-            <div className="rounded-md border border-ink-3 bg-ink-2/95 px-3 py-2 shadow-2xl backdrop-blur-md">
-              <div className="font-display text-xl leading-none text-bone">
-                {hovered.name}
-              </div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-bone-dim">
-                {hovered.country} · stop {hovered.firstStop}
-                {hovered.stops.length > 1 ? ` (×${hovered.stops.length})` : ""}
-              </div>
-              <div className="mt-2 max-w-[240px] text-sm italic text-bone/80">
-                &ldquo;{hovered.tagline}&rdquo;
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Country name tooltip (only when no marker hover is active) */}
-      <AnimatePresence>
-        {hoveredCountry && !hovered && (
-          <motion.div
-            key={`c-${hoveredCountry}`}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
-            className="pointer-events-none absolute z-10 hidden md:block"
-            style={{
-              left: Math.min(pos.x + 14, 9999),
-              top: Math.max(pos.y + 12, 0),
-            }}
-          >
-            <div className="rounded-sm border border-ink-3 bg-ink-2/90 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-bone-dim shadow-md backdrop-blur-md">
-              {hoveredCountry}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Tooltip — DOM-positioned, never re-renders the SVG */}
+      <div
+        ref={tooltipRef}
+        className="pointer-events-none absolute left-0 top-0 z-20"
+      >
+        <AnimatePresence>
+          {tooltipName && (
+            <motion.div
+              key={tooltipName}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className="rounded-sm border border-paper-3 bg-paper/95 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-ink shadow-md backdrop-blur-md"
+            >
+              {tooltipName}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }

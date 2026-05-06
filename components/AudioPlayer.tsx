@@ -66,14 +66,14 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
   const pct = duration ? (progress / duration) * 100 : 0;
 
   return (
-    <div className="rounded-lg border border-ink-3 bg-ink-2/60 p-4 backdrop-blur-sm">
+    <div className="rounded-lg border border-paper-3 bg-paper-2/70 p-4 backdrop-blur-sm">
       <div className="flex items-center gap-4">
         <button
           type="button"
           onClick={toggle}
           disabled={!hasAudio}
           aria-label={playing ? "Pause audio log" : "Play audio log"}
-          className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-amber/30 bg-amber/10 text-amber transition hover:bg-amber/20 disabled:cursor-not-allowed disabled:opacity-30"
+          className="grid h-12 w-12 shrink-0 place-items-center rounded-full border border-amber/40 bg-amber/10 text-amber transition hover:bg-amber/20 disabled:cursor-not-allowed disabled:opacity-30"
         >
           {playing ? (
             <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
@@ -88,8 +88,8 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
         </button>
 
         <div className="flex-1">
-          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-bone-dim">
-            <span>{hasAudio ? "Audio log" : "Audio coming soon"}</span>
+          <div className="flex items-center justify-between text-[10px] uppercase tracking-[0.2em] text-ink-faint">
+            <span>{hasAudio ? "Audio log" : "Voice reflection — coming soon"}</span>
             <span className="font-mono">
               {hasAudio
                 ? `${fmt(progress)} / ${fmt(duration)}`
@@ -97,7 +97,6 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
             </span>
           </div>
 
-          {/* Static waveform — bars stay still, color shows progress. */}
           <div
             className="relative mt-2 flex h-9 w-full items-end gap-[2px]"
             aria-hidden
@@ -111,7 +110,7 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
                   className="block flex-1 rounded-[2px]"
                   style={{
                     height: `${Math.round(h * 100)}%`,
-                    background: isPast ? "#d8a657" : "#3a4554",
+                    background: isPast ? "#b6803a" : "#cdc3ad",
                     transition: "background 200ms",
                   }}
                 />

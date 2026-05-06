@@ -1,7 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ComposableMap,
   Geographies,
@@ -12,22 +18,26 @@ import {
   Line,
   useMapContext,
 } from "react-simple-maps";
-import { geoCircle } from "d3-geo";
+import { geoCircle, geoInterpolate } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
-import { MODE_STYLE, getResolvedLegs } from "@/lib/places";
+import { MODE_STYLE, getResolvedLegs, CITIES } from "@/lib/places";
+import LandmarkLayer from "./LandmarkLayer";
 
 const GEO_URL = "/geo/countries-110m.json";
 
 type Props = {
   places: Place[];
   focusedSlug?: string | null;
-  autoRotate?: boolean;
   showRoute?: boolean;
-  showStars?: boolean;
   showTerminator?: boolean;
+  showClocks?: boolean;
+  showLandmarks?: boolean;
   legsThrough?: number | null;
   size?: number;
+  placeSlugs?: Set<string>;
+  onCountryHover?: (countryName: string | null) => void;
+  onCountryClick?: (countryName: string) => void;
 };
 
 const PARIS_SLUG = "paris";
@@ -52,14 +62,13 @@ function isVisible(
 function subsolarPoint(date: Date): [number, number] {
   const start = Date.UTC(date.getUTCFullYear(), 0, 0);
   const dayOfYear = Math.floor((date.getTime() - start) / 86400000);
-  const decl =
-    23.45 * Math.sin(((360 * (dayOfYear - 81)) / 365) * TO_RAD);
+  const decl = 23.45 * Math.sin(((360 * (dayOfYear - 81)) / 365) * TO_RAD);
   const utcHours = date.getUTCHours() + date.getUTCMinutes() / 60;
   const lon = -((utcHours - 12) * 15);
   return [lon, decl];
 }
 
-function NightTerminator({ now }: { now: number }) {
+function NightTerminator({ now, strength = 0.16 }: { now: number; strength?: number }) {
   const { path } = useMapContext() as { path: (g: unknown) => string | null };
   const d = useMemo(() => {
     const [sunLon, sunLat] = subsolarPoint(new Date(now));
@@ -71,73 +80,406 @@ function NightTerminator({ now }: { now: number }) {
   if (!d) return null;
   return (
     <g pointerEvents="none">
-      <path d={d} fill="rgba(8, 11, 20, 0.55)" />
-      <path
-        d={d}
-        fill="none"
-        stroke="rgba(216, 166, 87, 0.18)"
-        strokeWidth={0.8}
-      />
+      <path d={d} fill={`rgba(31, 54, 64, ${strength})`} />
+      <path d={d} fill="none" stroke="rgba(140, 93, 34, 0.2)" strokeWidth={0.6} />
     </g>
+  );
+}
+
+/** Memoized SVG body — re-renders only when its own deps change.
+ *  Critically: it does NOT depend on cursor position. */
+const GlobeSVG = memo(function GlobeSVG({
+  places,
+  rotate,
+  zoom,
+  size,
+  hoveredCountry,
+  hoveredMarkerCountry,
+  placeSlugs,
+  showRoute,
+  showTerminator,
+  showLandmarks,
+  showClocks,
+  legsThrough,
+  focusedSlug,
+  nowMs,
+  onCountryEnter,
+  onCountryClick,
+  onMarkerEnter,
+  onMarkerLeave,
+}: {
+  places: Place[];
+  rotate: [number, number, number];
+  zoom: number;
+  size: number;
+  hoveredCountry: string | null;
+  hoveredMarkerCountry: string | null;
+  placeSlugs?: Set<string>;
+  showRoute: boolean;
+  showTerminator: boolean;
+  showLandmarks: boolean;
+  showClocks: boolean;
+  legsThrough: number | null;
+  focusedSlug: string | null;
+  nowMs: number;
+  onCountryEnter: (name: string) => void;
+  onCountryClick: (name: string, hasPlace: boolean) => void;
+  onMarkerEnter: (slug: string | null) => void;
+  onMarkerLeave: () => void;
+}) {
+  const placesByCountry = useMemo(() => {
+    const m = new Map<string, Place>();
+    for (const p of places) m.set(p.country.toLowerCase(), p);
+    return m;
+  }, [places]);
+
+  const visibleByPlace = useMemo(() => {
+    const m = new Map<string, boolean>();
+    for (const p of places) m.set(p.slug, isVisible(p.coordinates, rotate));
+    return m;
+  }, [places, rotate]);
+
+  const legs = useMemo(() => getResolvedLegs(), []);
+  const visibleLegCount = legsThrough ?? legs.length;
+
+  const trailPoints = useMemo(() => {
+    const out: Array<[number, number]> = [];
+    const upTo = Math.min(visibleLegCount, legs.length);
+    for (let i = 0; i < upTo; i++) {
+      const leg = legs[i];
+      const interp = geoInterpolate(leg.fromCoord, leg.toCoord);
+      const steps = 24;
+      for (let s = 0; s <= steps; s++) out.push(interp(s / steps));
+    }
+    return out;
+  }, [legs, visibleLegCount]);
+
+  const projectionScale = (size / 2 - 8) * zoom;
+  const focusedPlace = focusedSlug
+    ? places.find((p) => p.slug === focusedSlug)
+    : null;
+
+  return (
+    <ComposableMap
+      projection="geoOrthographic"
+      projectionConfig={{ scale: projectionScale, rotate }}
+      width={size}
+      height={size}
+      style={{ width: "100%", height: "100%" }}
+    >
+      <defs>
+        <radialGradient id="ocean" cx="38%" cy="34%" r="72%">
+          <stop offset="0%" stopColor="#cfe0e6" />
+          <stop offset="55%" stopColor="#a7c4cd" />
+          <stop offset="100%" stopColor="#7ea3ad" />
+        </radialGradient>
+        <linearGradient id="land" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#f0e3ca" />
+          <stop offset="100%" stopColor="#d6bb8a" />
+        </linearGradient>
+        <linearGradient id="land-highlight" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#fff2d7" />
+          <stop offset="100%" stopColor="#e7c994" />
+        </linearGradient>
+        <linearGradient id="land-place" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#f6d8a4" />
+          <stop offset="100%" stopColor="#cb9b56" />
+        </linearGradient>
+        <radialGradient id="globe-marker">
+          <stop offset="0%" stopColor="#b6803a" stopOpacity="0.95" />
+          <stop offset="55%" stopColor="#b6803a" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#b6803a" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="globe-marker-paris">
+          <stop offset="0%" stopColor="#fde8b8" stopOpacity="1" />
+          <stop offset="50%" stopColor="#b6803a" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="#b6803a" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="focus-pulse">
+          <stop offset="0%" stopColor="#9a4a28" stopOpacity="0.9" />
+          <stop offset="60%" stopColor="#9a4a28" stopOpacity="0.18" />
+          <stop offset="100%" stopColor="#9a4a28" stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      <Sphere id="globe-sphere" fill="url(#ocean)" stroke="#7a5e34" strokeWidth={0.8} />
+
+      <Graticule
+        stroke="rgba(122, 94, 52, 0.10)"
+        strokeWidth={0.4}
+        step={[15, 15]}
+      />
+
+      <Geographies geography={GEO_URL}>
+        {({ geographies }: { geographies: Array<{ rsmKey: string; properties: { name: string } }> }) =>
+          geographies.map((geo) => {
+            const name = geo.properties?.name ?? "";
+            const place = placesByCountry.get(name.toLowerCase());
+            const hasPlace = !!place && (placeSlugs?.has(place.slug) ?? true);
+            const isMarkerHi = hoveredMarkerCountry !== null && name.toLowerCase() === hoveredMarkerCountry.toLowerCase();
+            const isCountryHi = hoveredCountry !== null && name === hoveredCountry;
+            const isHi = isMarkerHi || isCountryHi;
+            const fill = isHi
+              ? "url(#land-highlight)"
+              : hasPlace
+                ? "url(#land-place)"
+                : "url(#land)";
+            return (
+              <Geography
+                key={geo.rsmKey}
+                geography={geo}
+                onMouseEnter={() => onCountryEnter(name)}
+                onClick={() => onCountryClick(name, hasPlace)}
+                fill={fill}
+                stroke={isHi ? "#9a4a28" : "#a3854a"}
+                strokeWidth={isHi ? 0.7 : 0.35}
+                style={{
+                  default: {
+                    outline: "none",
+                    transition: "fill 220ms",
+                    cursor: hasPlace ? "pointer" : "default",
+                  },
+                  hover: {
+                    fill: "url(#land-highlight)",
+                    outline: "none",
+                    cursor: hasPlace ? "pointer" : "default",
+                  },
+                  pressed: {
+                    fill: "url(#land-highlight)",
+                    outline: "none",
+                  },
+                }}
+              />
+            );
+          })
+        }
+      </Geographies>
+
+      {showTerminator && <NightTerminator now={nowMs} />}
+
+      {showRoute && trailPoints.length > 1 && (
+        <g pointerEvents="none">
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.18)" width={4.5} />
+          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.85)" width={1.1} />
+        </g>
+      )}
+
+      {showRoute &&
+        legs.slice(0, visibleLegCount).map((leg) => {
+          const style = MODE_STYLE[leg.mode];
+          const isCurrent = legsThrough === leg.index;
+          return (
+            <Line
+              key={leg.index}
+              from={leg.fromCoord}
+              to={leg.toCoord}
+              stroke={style.color}
+              strokeWidth={isCurrent ? style.width + 0.6 : 0.5}
+              strokeOpacity={isCurrent ? 0.9 : 0.18}
+              strokeLinecap="round"
+              strokeDasharray={style.dash === "0" ? undefined : style.dash}
+              fill="none"
+            />
+          );
+        })}
+
+      {/* Focus pulse on current scrubbed stop */}
+      {focusedPlace && visibleByPlace.get(focusedPlace.slug) && (
+        <Marker coordinates={focusedPlace.coordinates}>
+          <g pointerEvents="none">
+            <motion.circle
+              r={22}
+              fill="url(#focus-pulse)"
+              initial={{ opacity: 0.9, scale: 0.6 }}
+              animate={{ opacity: [0.9, 0.2, 0.9], scale: [0.6, 1.4, 0.6] }}
+              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <circle r={3} fill="#9a4a28" stroke="#fff" strokeWidth={1} />
+          </g>
+        </Marker>
+      )}
+
+      {/* Markers — visible-side only */}
+      {places.map((place) => {
+        const visible = visibleByPlace.get(place.slug);
+        if (!visible) return null;
+        const isHub = place.slug === PARIS_SLUG;
+        return (
+          <Marker
+            key={place.slug}
+            coordinates={place.coordinates}
+            onMouseEnter={() => onMarkerEnter(place.country)}
+            onMouseLeave={onMarkerLeave}
+            onClick={() => onCountryClick(place.country, true)}
+            style={{
+              default: { cursor: "pointer", outline: "none" },
+              hover: { cursor: "pointer", outline: "none" },
+              pressed: { cursor: "pointer", outline: "none" },
+            }}
+          >
+            <g>
+              <circle
+                r={isHub ? 10 : 6}
+                fill={`url(#${isHub ? "globe-marker-paris" : "globe-marker"})`}
+              />
+              <circle
+                r={isHub ? 3.2 : 2.2}
+                fill={isHub ? "#fde8b8" : "#b6803a"}
+                stroke="#3a2a14"
+                strokeWidth={0.7}
+              />
+            </g>
+          </Marker>
+        );
+      })}
+
+      {/* Local clocks layer — for visited countries only */}
+      {showClocks && (
+        <ClockLayer places={places} visibleByPlace={visibleByPlace} nowMs={nowMs} />
+      )}
+
+      {/* Landmark figurines */}
+      {showLandmarks && (
+        <LandmarkLayer
+          places={places}
+          visibleByPlace={visibleByPlace}
+        />
+      )}
+    </ComposableMap>
+  );
+});
+
+function ClockLayer({
+  places,
+  visibleByPlace,
+  nowMs,
+}: {
+  places: Place[];
+  visibleByPlace: Map<string, boolean>;
+  nowMs: number;
+}) {
+  // Use longitude / 15 to approximate timezone offset (no API call, instant)
+  const date = new Date(nowMs);
+  // De-duplicate by country: only one clock per country (use the hub city)
+  const seen = new Set<string>();
+  const items: Array<{ slug: string; coord: [number, number]; label: string }> = [];
+  for (const p of places) {
+    if (seen.has(p.country)) continue;
+    seen.add(p.country);
+    if (!visibleByPlace.get(p.slug)) continue;
+    const offsetH = p.coordinates[0] / 15;
+    const local = new Date(date.getTime() + offsetH * 3600_000);
+    const hh = local.getUTCHours().toString().padStart(2, "0");
+    const mm = local.getUTCMinutes().toString().padStart(2, "0");
+    items.push({ slug: p.slug, coord: p.coordinates, label: `${hh}:${mm}` });
+  }
+  return (
+    <g pointerEvents="none">
+      {items.map((it) => (
+        <Marker key={it.slug} coordinates={it.coord}>
+          <g transform="translate(0,-14)">
+            <rect
+              x={-15}
+              y={-7}
+              width={30}
+              height={12}
+              rx={2.5}
+              fill="rgba(243,239,231,0.92)"
+              stroke="rgba(122,94,52,0.4)"
+              strokeWidth={0.4}
+            />
+            <text
+              y={2}
+              textAnchor="middle"
+              fontSize={8}
+              fontFamily="monospace"
+              fill="#1a1a1a"
+            >
+              {it.label}
+            </text>
+          </g>
+        </Marker>
+      ))}
+    </g>
+  );
+}
+
+function Trail({
+  points,
+  color,
+  width,
+}: {
+  points: Array<[number, number]>;
+  color: string;
+  width: number;
+}) {
+  const { projection } = useMapContext() as {
+    projection: (c: [number, number]) => [number, number] | null;
+  };
+  const segments = useMemo(() => {
+    const segs: string[] = [];
+    let current: string[] = [];
+    for (const p of points) {
+      const proj = projection(p);
+      if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
+        if (current.length > 1) segs.push(`M${current.join("L")}`);
+        current = [];
+        continue;
+      }
+      current.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+    }
+    if (current.length > 1) segs.push(`M${current.join("L")}`);
+    return segs.join(" ");
+  }, [points, projection]);
+  if (!segments) return null;
+  return (
+    <path
+      d={segments}
+      fill="none"
+      stroke={color}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
   );
 }
 
 function GlobeImpl({
   places,
   focusedSlug = null,
-  autoRotate = false,
   showRoute = true,
-  showStars = true,
   showTerminator = true,
+  showClocks = false,
+  showLandmarks = false,
   legsThrough = null,
   size = 520,
+  placeSlugs,
+  onCountryHover,
+  onCountryClick,
 }: Props) {
-  const router = useRouter();
   const [rotate, setRotate] = useState<[number, number, number]>([-15, -25, 0]);
   const [zoom, setZoom] = useState<number>(1);
-  const [hovered, setHovered] = useState<Place | null>(null);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
-  const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [hoveredMarkerCountry, setHoveredMarkerCountry] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Cursor state — kept in a ref + a separate component so the SVG body
+  // does NOT re-render on every mouse move (this caused the "shake").
+  const posRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   const dragging = useRef(false);
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
   const interactingAt = useRef<number>(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const stars = useMemo(
-    () =>
-      Array.from({ length: 90 }, () => ({
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        s: Math.random() * 1.1 + 0.3,
-        o: Math.random() * 0.7 + 0.15,
-      })),
-    [],
-  );
-
+  // Tick clocks every 30s — clocks layer only renders if enabled
   useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
-    if (!autoRotate) return;
-    let raf: number;
-    let last = performance.now();
-    const tick = (now: number) => {
-      const dt = now - last;
-      last = now;
-      const idle = now - interactingAt.current > 600;
-      if (!dragging.current && idle && !hovered) {
-        setRotate(([l, p, g]) => [(l + dt * 0.012) % 360, p, g]);
-      }
-      raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [autoRotate, hovered]);
-
+  // Fly to focused city
   useEffect(() => {
     if (!focusedSlug) return;
     const place = places.find((p) => p.slug === focusedSlug);
@@ -160,11 +502,7 @@ function GlobeImpl({
       let dl = target[0] - start[0];
       while (dl > 180) dl -= 360;
       while (dl < -180) dl += 360;
-      setRotate([
-        start[0] + dl * k,
-        start[1] + (target[1] - start[1]) * k,
-        0,
-      ]);
+      setRotate([start[0] + dl * k, start[1] + (target[1] - start[1]) * k, 0]);
       if (t < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
@@ -179,6 +517,18 @@ function GlobeImpl({
     interactingAt.current = performance.now();
   };
   const onPointerMove = (e: React.PointerEvent) => {
+    // Update tooltip position via ref (no React re-render)
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    if (rect) {
+      posRef.current.x = e.clientX - rect.left;
+      posRef.current.y = e.clientY - rect.top;
+      const t = tooltipRef.current;
+      if (t) {
+        t.style.transform = `translate(${posRef.current.x + 14}px, ${
+          posRef.current.y + 14
+        }px)`;
+      }
+    }
     if (!dragging.current || !lastPointer.current) return;
     const dx = e.clientX - lastPointer.current.x;
     const dy = e.clientY - lastPointer.current.y;
@@ -196,8 +546,6 @@ function GlobeImpl({
     interactingAt.current = performance.now();
   };
 
-  // Native wheel listener with passive:false so we can preventDefault and
-  // stop the page from scrolling/zooming while the user zooms the globe.
   useEffect(() => {
     const el = wrapperRef.current;
     if (!el) return;
@@ -211,22 +559,26 @@ function GlobeImpl({
     return () => el.removeEventListener("wheel", handler);
   }, []);
 
-  const visibleByPlace = useMemo(() => {
-    const m = new Map<string, boolean>();
-    for (const p of places) m.set(p.slug, isVisible(p.coordinates, rotate));
-    return m;
-  }, [places, rotate]);
+  // Stable callbacks for the memoized SVG body
+  const onCountryEnter = useCallback(
+    (name: string) => {
+      setHoveredCountry(name);
+      onCountryHover?.(name);
+    },
+    [onCountryHover],
+  );
+  const onCountryClickInner = useCallback(
+    (name: string, hasPlace: boolean) => {
+      if (hasPlace) onCountryClick?.(name);
+    },
+    [onCountryClick],
+  );
+  const onMarkerEnter = useCallback((country: string | null) => {
+    setHoveredMarkerCountry(country);
+  }, []);
+  const onMarkerLeave = useCallback(() => setHoveredMarkerCountry(null), []);
 
-  const legs = useMemo(() => getResolvedLegs(), []);
-  const visibleLegCount = legsThrough ?? legs.length;
-
-  const trackPos = (e: React.PointerEvent) => {
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    setPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
-  };
-
-  const projectionScale = (size / 2 - 8) * zoom;
+  const tooltipName = hoveredMarkerCountry ?? hoveredCountry;
 
   return (
     <div
@@ -234,240 +586,66 @@ function GlobeImpl({
       className="relative w-full select-none touch-none"
       style={{ aspectRatio: "1 / 1", maxWidth: size }}
       onPointerDown={onPointerDown}
-      onPointerMove={(e) => {
-        onPointerMove(e);
-        trackPos(e);
-      }}
+      onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      onPointerLeave={onPointerUp}
+      onPointerLeave={() => {
+        onPointerUp();
+        setHoveredCountry(null);
+        setHoveredMarkerCountry(null);
+        onCountryHover?.(null);
+      }}
     >
-      {showStars && (
-        <div className="pointer-events-none absolute inset-0">
-          {stars.map((s, i) => (
-            <span
-              key={i}
-              className="absolute rounded-full bg-bone"
-              style={{
-                left: `${s.x}%`,
-                top: `${s.y}%`,
-                width: `${s.s}px`,
-                height: `${s.s}px`,
-                opacity: s.o,
-              }}
-            />
-          ))}
-        </div>
-      )}
-
       <div
         className="pointer-events-none absolute inset-0 rounded-full"
         style={{
           background:
-            "radial-gradient(circle at 50% 50%, rgba(216,166,87,0.10) 47%, rgba(216,166,87,0.18) 49%, rgba(216,166,87,0) 56%)",
+            "radial-gradient(circle at 50% 50%, rgba(182,128,58,0.04) 50%, rgba(182,128,58,0.08) 51%, rgba(182,128,58,0) 56%)",
         }}
       />
 
-      <ComposableMap
-        projection="geoOrthographic"
-        projectionConfig={{ scale: projectionScale, rotate }}
-        width={size}
-        height={size}
-        style={{
-          width: "100%",
-          height: "100%",
-          cursor: dragging.current ? "grabbing" : "grab",
-        }}
+      <GlobeSVG
+        places={places}
+        rotate={rotate}
+        zoom={zoom}
+        size={size}
+        hoveredCountry={hoveredCountry}
+        hoveredMarkerCountry={hoveredMarkerCountry}
+        placeSlugs={placeSlugs}
+        showRoute={showRoute}
+        showTerminator={showTerminator}
+        showClocks={showClocks}
+        showLandmarks={showLandmarks}
+        legsThrough={legsThrough}
+        focusedSlug={focusedSlug}
+        nowMs={nowMs}
+        onCountryEnter={onCountryEnter}
+        onCountryClick={onCountryClickInner}
+        onMarkerEnter={onMarkerEnter}
+        onMarkerLeave={onMarkerLeave}
+      />
+
+      {/* Tooltip lives in its own DOM node — its position is updated via
+          a ref so SVG paths never re-render on cursor movement. */}
+      <div
+        ref={tooltipRef}
+        className="pointer-events-none absolute left-0 top-0 z-20"
+        style={{ transition: "opacity 120ms" }}
       >
-        <defs>
-          <radialGradient id="ocean" cx="38%" cy="34%" r="72%">
-            <stop offset="0%" stopColor="#1e4566" />
-            <stop offset="55%" stopColor="#0e2e4a" />
-            <stop offset="100%" stopColor="#061525" />
-          </radialGradient>
-          <linearGradient id="land" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#d6b483" />
-            <stop offset="100%" stopColor="#9a7546" />
-          </linearGradient>
-          <linearGradient id="land-highlight" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#f5d8a4" />
-            <stop offset="100%" stopColor="#c8975a" />
-          </linearGradient>
-          <radialGradient id="globe-marker">
-            <stop offset="0%" stopColor="#ff8a4a" stopOpacity="0.95" />
-            <stop offset="55%" stopColor="#ff8a4a" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="#ff8a4a" stopOpacity="0" />
-          </radialGradient>
-          <radialGradient id="globe-marker-paris">
-            <stop offset="0%" stopColor="#fff1c2" stopOpacity="1" />
-            <stop offset="50%" stopColor="#ff8a4a" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="#ff8a4a" stopOpacity="0" />
-          </radialGradient>
-        </defs>
-
-        <Sphere
-          id="globe-sphere"
-          fill="url(#ocean)"
-          stroke="#9a7546"
-          strokeWidth={0.8}
-        />
-
-        <Graticule
-          stroke="rgba(216, 166, 87, 0.10)"
-          strokeWidth={0.4}
-          step={[15, 15]}
-        />
-
-        <Geographies geography={GEO_URL}>
-          {({
-            geographies,
-          }: {
-            geographies: Array<{
-              rsmKey: string;
-              properties: { name: string };
-            }>;
-          }) =>
-            geographies.map((geo) => {
-              const name = geo.properties?.name ?? "";
-              const isMarkerHi =
-                hovered != null &&
-                name.toLowerCase() === hovered.country.toLowerCase();
-              const isCountryHi =
-                hoveredCountry !== null && name === hoveredCountry && !hovered;
-              const isHi = isMarkerHi || isCountryHi;
-              return (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  onMouseEnter={() => setHoveredCountry(name)}
-                  onMouseLeave={() =>
-                    setHoveredCountry((c) => (c === name ? null : c))
-                  }
-                  fill={isHi ? "url(#land-highlight)" : "url(#land)"}
-                  stroke={isHi ? "#ff8a4a" : "#6b4d2c"}
-                  strokeWidth={isHi ? 0.7 : 0.4}
-                  style={{
-                    default: { outline: "none", transition: "fill 200ms" },
-                    hover: {
-                      fill: "url(#land-highlight)",
-                      outline: "none",
-                    },
-                    pressed: {
-                      fill: "url(#land-highlight)",
-                      outline: "none",
-                    },
-                  }}
-                />
-              );
-            })
-          }
-        </Geographies>
-
-        {showTerminator && <NightTerminator now={nowMs} />}
-
-        {showRoute &&
-          legs.slice(0, visibleLegCount).map((leg) => {
-            const style = MODE_STYLE[leg.mode];
-            const isCurrent = legsThrough === leg.index;
-            return (
-              <Line
-                key={leg.index}
-                from={leg.fromCoord}
-                to={leg.toCoord}
-                stroke={style.color}
-                strokeWidth={isCurrent ? style.width + 1 : style.width}
-                strokeOpacity={isCurrent ? 0.95 : 0.65}
-                strokeLinecap="round"
-                strokeDasharray={style.dash === "0" ? undefined : style.dash}
-                fill="none"
-              />
-            );
-          })}
-
-        {places.map((place) => {
-          const visible = visibleByPlace.get(place.slug);
-          if (!visible) return null;
-          const isHub = place.slug === PARIS_SLUG;
-          return (
-            <Marker
-              key={place.slug}
-              coordinates={place.coordinates}
-              onMouseEnter={() => setHovered(place)}
-              onMouseLeave={() => setHovered(null)}
-              onClick={() => router.push(`/places/${place.slug}`)}
-              style={{
-                default: { cursor: "pointer", outline: "none" },
-                hover: { cursor: "pointer", outline: "none" },
-                pressed: { cursor: "pointer", outline: "none" },
-              }}
+        <AnimatePresence>
+          {tooltipName && (
+            <motion.div
+              key={tooltipName}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.12 }}
+              className="rounded-sm border border-paper-3 bg-paper/95 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-ink shadow-md backdrop-blur-md"
             >
-              <g>
-                <circle
-                  r={isHub ? 16 : 10}
-                  fill={`url(#${isHub ? "globe-marker-paris" : "globe-marker"})`}
-                />
-                <circle
-                  r={isHub ? 5 : 3.4}
-                  fill={isHub ? "#fff1c2" : "#ff8a4a"}
-                  stroke="#0b0d10"
-                  strokeWidth={1}
-                />
-              </g>
-            </Marker>
-          );
-        })}
-      </ComposableMap>
-
-      <AnimatePresence>
-        {hovered && (
-          <motion.div
-            key={`m-${hovered.slug}`}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="pointer-events-none absolute z-20 hidden md:block"
-            style={{
-              left: Math.min(pos.x + 16, 9999),
-              top: Math.max(pos.y - 10, 0),
-            }}
-          >
-            <div className="rounded-md border border-ink-3 bg-ink-2/95 px-3 py-2 shadow-2xl backdrop-blur-md">
-              <div className="font-display text-xl leading-none text-bone">
-                {hovered.name}
-              </div>
-              <div className="mt-1 text-[10px] uppercase tracking-[0.18em] text-bone-dim">
-                {hovered.country} · stop {hovered.firstStop}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {hoveredCountry && !hovered && (
-          <motion.div
-            key={`c-${hoveredCountry}`}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.12 }}
-            className="pointer-events-none absolute z-10 hidden md:block"
-            style={{
-              left: Math.min(pos.x + 14, 9999),
-              top: Math.max(pos.y + 12, 0),
-            }}
-          >
-            <div className="rounded-sm border border-ink-3 bg-ink-2/90 px-2 py-1 text-[11px] uppercase tracking-[0.18em] text-bone-dim shadow-md backdrop-blur-md">
-              {hoveredCountry}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Globe zoom indicator */}
-      <div className="pointer-events-none absolute right-2 top-2 rounded-sm border border-ink-3 bg-ink-2/70 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.18em] text-bone-dim/80 backdrop-blur">
-        {zoom.toFixed(1)}× · scroll to zoom
+              {tooltipName}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -476,7 +654,6 @@ function GlobeImpl({
 export default function Globe(props: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-
   if (!mounted) {
     return (
       <div
@@ -488,7 +665,7 @@ export default function Globe(props: Props) {
           className="absolute inset-0 rounded-full"
           style={{
             background:
-              "radial-gradient(circle at 38% 34%, #1e4566 0%, #0e2e4a 55%, #061525 100%)",
+              "radial-gradient(circle at 38% 34%, #cfe0e6 0%, #a7c4cd 55%, #7ea3ad 100%)",
             opacity: 0.7,
           }}
         />
@@ -497,3 +674,6 @@ export default function Globe(props: Props) {
   }
   return <GlobeImpl {...props} />;
 }
+
+// Avoid unused warnings for CITIES import (kept for future extension)
+void CITIES;

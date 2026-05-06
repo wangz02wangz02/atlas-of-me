@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getAllPlaces, getPlace } from "@/lib/places";
+import { getAllPlaces } from "@/lib/places";
+import { getPlaceWithPhotos } from "@/lib/places-server";
 import PlaceDetailClient from "@/components/PlaceDetailClient";
 
 type Params = Promise<{ slug: string }>;
@@ -15,7 +16,7 @@ export async function generateMetadata({
   params: Params;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const place = getPlace(slug);
+  const place = getPlaceWithPhotos(slug);
   if (!place) return { title: "Not found — Atlas of Me" };
   return {
     title: `${place.name} — Atlas of Me`,
@@ -25,7 +26,7 @@ export async function generateMetadata({
 
 export default async function PlacePage({ params }: { params: Params }) {
   const { slug } = await params;
-  const place = getPlace(slug);
+  const place = getPlaceWithPhotos(slug);
   if (!place) notFound();
   return <PlaceDetailClient place={place} />;
 }

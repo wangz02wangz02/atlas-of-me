@@ -31,17 +31,6 @@ function buildPlaces(): Place[] {
 
   const places: Place[] = Object.values(CITIES).map((city) => {
     const stops = stopsByCity.get(city.slug) ?? [];
-    const seeds =
-      city.photoSeeds ??
-      [
-        `${city.slug}-1`,
-        `${city.slug}-2`,
-        `${city.slug}-3`,
-      ];
-    const photos = seeds.map((seed, i) => ({
-      src: `https://picsum.photos/seed/${encodeURIComponent(seed)}/${i === 0 ? 1600 : 1200}/${i === 0 ? 900 : 1500}`,
-      alt: `${city.name} — view ${i + 1}`,
-    }));
     return {
       slug: city.slug,
       name: city.name,
@@ -53,7 +42,8 @@ function buildPlaces(): Place[] {
       stops,
       tagline: city.tagline,
       journal: city.journal,
-      photos,
+      photos: [],
+      hasRealPhotos: false,
       audio: { durationLabel: "—:—" },
     };
   });
