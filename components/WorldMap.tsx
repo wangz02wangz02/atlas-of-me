@@ -27,6 +27,7 @@ import {
 } from "@/lib/places";
 import LandmarkLayer from "./LandmarkLayer";
 import LegTraveler from "./LegTraveler";
+import { catmullRomPath } from "@/lib/spline";
 
 const GEO_URL = "/geo/countries-110m.json";
 const TO_RAD = Math.PI / 180;
@@ -177,9 +178,11 @@ function planeRoutePath(
 }
 
 /**
- * Renders the entire journey as a concatenated set of Bezier arcs, one
- * per leg. Used for the bulk amber glow underneath the colored per-leg
- * arcs. `count` lets the scrubber reveal it leg-by-leg.
+ * Renders the entire journey as ONE smooth Catmull-Rom spline through
+ * every visited stop. The curve glides through each city without
+ * triangle-y corners between legs. Splits only at the antimeridian
+ * (so trans-pacific routes still break cleanly at the seam) and at
+ * any non-finite projection.
  */
 function BulkJourneyTrail({
   legs,
@@ -197,12 +200,43 @@ function BulkJourneyTrail({
   };
   const d = useMemo(() => {
     const upTo = Math.min(count, legs.length);
-    const parts: string[] = [];
-    for (let i = 0; i < upTo; i++) {
-      const p = planeRoutePath(legs[i].fromCoord, legs[i].toCoord, projection);
-      if (p) parts.push(p);
+    if (upTo === 0) return "";
+
+    // Build the chronological stop list with their geo lon for seam detection.
+    const stops: Array<{ pt: [number, number] | null; lon: number }> = [];
+    const pushPt = (geo: [number, number]) => {
+      const proj = projection(geo);
+      const ok =
+        proj && Number.isFinite(proj[0]) && Number.isFinite(proj[1])
+          ? ([proj[0], proj[1]] as [number, number])
+          : null;
+      stops.push({ pt: ok, lon: geo[0] });
+    };
+    pushPt(legs[0].fromCoord);
+    for (let i = 0; i < upTo; i++) pushPt(legs[i].toCoord);
+
+    // Split into runs at antimeridian crossings (|Δlon| > 180°) or null
+    // projections. Within a run the curve glides smoothly.
+    const runs: Array<Array<[number, number]>> = [];
+    let current: Array<[number, number]> = [];
+    for (let i = 0; i < stops.length; i++) {
+      const s = stops[i];
+      if (!s.pt) {
+        if (current.length >= 2) runs.push(current);
+        current = [];
+        continue;
+      }
+      if (i > 0) {
+        const prev = stops[i - 1];
+        if (prev.pt && Math.abs(s.lon - prev.lon) > 180) {
+          if (current.length >= 2) runs.push(current);
+          current = [];
+        }
+      }
+      current.push(s.pt);
     }
-    return parts.join(" ");
+    if (current.length >= 2) runs.push(current);
+    return runs.map(catmullRomPath).join(" ");
   }, [legs, count, projection]);
   if (!d) return null;
   return (

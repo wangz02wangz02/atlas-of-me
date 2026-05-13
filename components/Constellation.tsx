@@ -23,6 +23,7 @@ import {
   type Match,
   CONSTELLATIONS,
 } from "@/lib/constellations";
+import { catmullRomPath } from "@/lib/spline";
 
 type Props = {
   places: Place[];
@@ -53,11 +54,15 @@ function isVisible(
 }
 
 /** Draws a curved chronological "constellation" — the projected line
- *  through every visited stop in journey order.  We pass `rotate` here so
- *  we can manually skip back-hemisphere points; on geoOrthographic the
- *  raw projection function returns finite values everywhere (clipAngle
- *  only applies inside .stream()), so without this the journey path
- *  bleeds through to the far side of the orb. */
+ *  through every visited stop in journey order.
+ *
+ *  The path is built as a Catmull-Rom spline through the projected points
+ *  (split into runs at back-hemisphere transitions) so the curve glides
+ *  smoothly between segments instead of corner-ing at each shared
+ *  endpoint. We still pass `rotate` here to manually skip back-hemisphere
+ *  points; on geoOrthographic the raw projection function returns finite
+ *  values everywhere (clipAngle only applies inside .stream()), so without
+ *  this the journey path would bleed through to the far side of the orb. */
 function ConstellationLines({
   points,
   rotate,
@@ -73,24 +78,25 @@ function ConstellationLines({
     projection: (c: [number, number]) => [number, number] | null;
   };
   const segments = useMemo(() => {
-    const segs: string[] = [];
-    let current: string[] = [];
+    // Project, splitting into continuous front-hemisphere runs.
+    const runs: Array<Array<[number, number]>> = [];
+    let current: Array<[number, number]> = [];
     for (const p of points) {
       if (!isVisible(p, rotate)) {
-        if (current.length > 1) segs.push(`M${current.join("L")}`);
+        if (current.length >= 2) runs.push(current);
         current = [];
         continue;
       }
       const proj = projection(p);
       if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
-        if (current.length > 1) segs.push(`M${current.join("L")}`);
+        if (current.length >= 2) runs.push(current);
         current = [];
         continue;
       }
-      current.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+      current.push([proj[0], proj[1]]);
     }
-    if (current.length > 1) segs.push(`M${current.join("L")}`);
-    return segs.join(" ");
+    if (current.length >= 2) runs.push(current);
+    return runs.map(catmullRomPath).join(" ");
   }, [points, projection, rotate]);
   if (!segments) return null;
   return (
@@ -346,20 +352,21 @@ function MatchedConstellationOverlay({
     });
   }, [points, projection, rotate]);
 
-  // Build path with breaks on back-hemisphere null points
+  // Build path as a Catmull-Rom spline so the matched constellation
+  // overlay also flows smoothly between vertices.
   const path = useMemo(() => {
-    const segs: string[] = [];
-    let curr: string[] = [];
+    const runs: Array<Array<[number, number]>> = [];
+    let curr: Array<[number, number]> = [];
     for (const proj of projected) {
       if (!proj) {
-        if (curr.length > 1) segs.push(`M${curr.join("L")}`);
+        if (curr.length >= 2) runs.push(curr);
         curr = [];
         continue;
       }
-      curr.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+      curr.push([proj[0], proj[1]]);
     }
-    if (curr.length > 1) segs.push(`M${curr.join("L")}`);
-    return segs.join(" ");
+    if (curr.length >= 2) runs.push(curr);
+    return runs.map(catmullRomPath).join(" ");
   }, [projected]);
 
   if (!path) return null;
