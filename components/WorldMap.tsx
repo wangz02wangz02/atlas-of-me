@@ -49,6 +49,9 @@ type Props = {
    *  Drives the moving plane / mode glyph. */
   activeLegIndex?: number | null;
   focusedSlug?: string | null;
+  /** When true, the focus marker shines/sparkles brighter — used during the
+   *  Random Place spinner so the user can actually see what's being picked. */
+  sparkle?: boolean;
   placeSlugs?: Set<string>;
   onMoveEnd?: (pos: { coordinates: [number, number]; zoom: number }) => void;
   onCountryHover?: (countryName: string | null) => void;
@@ -211,6 +214,7 @@ const MapBody = memo(function MapBody({
   legsThrough,
   activeLegIndex,
   focusedSlug,
+  sparkle,
   zoom,
   nowMs,
   onCountryEnter,
@@ -230,6 +234,7 @@ const MapBody = memo(function MapBody({
   legsThrough: number | null;
   activeLegIndex: number | null;
   focusedSlug: string | null;
+  sparkle: boolean;
   zoom: number;
   nowMs: number;
   onCountryEnter: (name: string) => void;
@@ -333,31 +338,43 @@ const MapBody = memo(function MapBody({
 
       {showTerminator && <NightShade now={nowMs} />}
 
+      {/* Bulk amber glow under the whole journey — kept fatter and brighter
+       *  so the trail reads even at zoomed-out defaults. */}
       {showRoute && trailPoints.length > 1 && (
         <g pointerEvents="none">
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.10)" width={3 / zoom} />
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.55)" width={0.8 / zoom} />
+          <Trail
+            points={trailPoints}
+            color="rgba(182, 128, 58, 0.16)"
+            width={5 / zoom}
+          />
+          <Trail
+            points={trailPoints}
+            color="rgba(154, 74, 40, 0.75)"
+            width={1.3 / zoom}
+          />
         </g>
       )}
 
-      {/* Per-leg arcs — only highlight legs connected to the hovered country
-       *  or the currently scrubbed leg. Great-circle and seam-aware. */}
+      {/* Per-leg arcs — ALL legs render with the mode color at low opacity
+       *  so the user always sees the full route. Hovered country lights up
+       *  its arrival/departure arcs, and the currently scrubbed leg jumps
+       *  to full prominence. Great-circle and antimeridian-seam aware. */}
       {showRoute &&
         legs.slice(0, visibleLegCount).map((leg) => {
           const isCurrent = legsThrough === leg.index;
           const isConnected =
             hoveredSlugs.size > 0 &&
             (hoveredSlugs.has(leg.from) || hoveredSlugs.has(leg.to));
-          if (!isConnected && !isCurrent) return null;
           const style = MODE_STYLE[leg.mode];
+          const isHi = isConnected || isCurrent;
           return (
             <LegArc
               key={leg.index}
               from={leg.fromCoord}
               to={leg.toCoord}
               color={style.color}
-              width={(isCurrent ? 1.6 : 1) / zoom}
-              opacity={0.9}
+              width={(isCurrent ? 1.8 : isHi ? 1.2 : 0.55) / zoom}
+              opacity={isCurrent ? 0.95 : isHi ? 0.85 : 0.35}
               dash={style.dash === "0" ? undefined : style.dash}
             />
           );
@@ -377,14 +394,83 @@ const MapBody = memo(function MapBody({
       {focusedPlace && (
         <Marker coordinates={focusedPlace.coordinates}>
           <g pointerEvents="none">
-            <motion.circle
-              r={18 / zoom}
-              fill="url(#focus-pulse-flat)"
-              initial={{ opacity: 0.9, scale: 0.6 }}
-              animate={{ opacity: [0.9, 0.2, 0.9], scale: [0.6, 1.4, 0.6] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <circle r={2 / zoom} fill="#9a4a28" stroke="#fff" strokeWidth={0.6 / zoom} />
+            {sparkle ? (
+              <>
+                {/* outer hot halo */}
+                <motion.circle
+                  r={36 / zoom}
+                  fill="url(#sparkle-burst-flat)"
+                  initial={{ opacity: 0.9, scale: 0.4 }}
+                  animate={{ opacity: [1, 0.25, 1], scale: [0.55, 1.5, 0.55] }}
+                  transition={{ duration: 0.55, repeat: Infinity, ease: "easeInOut" }}
+                />
+                {/* rotating cross spokes */}
+                <motion.g
+                  initial={{ rotate: 0 }}
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+                >
+                  <line
+                    x1={-26 / zoom}
+                    y1={0}
+                    x2={26 / zoom}
+                    y2={0}
+                    stroke="#ffd87f"
+                    strokeWidth={1.3 / zoom}
+                    strokeLinecap="round"
+                  />
+                  <line
+                    x1={0}
+                    y1={-26 / zoom}
+                    x2={0}
+                    y2={26 / zoom}
+                    stroke="#ffd87f"
+                    strokeWidth={1.3 / zoom}
+                    strokeLinecap="round"
+                  />
+                </motion.g>
+                {/* counter-rotating shorter cross */}
+                <motion.g
+                  initial={{ rotate: 45 }}
+                  animate={{ rotate: 45 - 360 }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                >
+                  <line
+                    x1={-15 / zoom}
+                    y1={0}
+                    x2={15 / zoom}
+                    y2={0}
+                    stroke="#fff2d7"
+                    strokeWidth={0.8 / zoom}
+                    strokeLinecap="round"
+                    opacity={0.9}
+                  />
+                  <line
+                    x1={0}
+                    y1={-15 / zoom}
+                    x2={0}
+                    y2={15 / zoom}
+                    stroke="#fff2d7"
+                    strokeWidth={0.8 / zoom}
+                    strokeLinecap="round"
+                    opacity={0.9}
+                  />
+                </motion.g>
+                <circle r={3 / zoom} fill="#ffffff" />
+                <circle r={1.4 / zoom} fill="#9a4a28" />
+              </>
+            ) : (
+              <>
+                <motion.circle
+                  r={18 / zoom}
+                  fill="url(#focus-pulse-flat)"
+                  initial={{ opacity: 0.9, scale: 0.6 }}
+                  animate={{ opacity: [0.9, 0.2, 0.9], scale: [0.6, 1.4, 0.6] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                />
+                <circle r={2 / zoom} fill="#9a4a28" stroke="#fff" strokeWidth={0.6 / zoom} />
+              </>
+            )}
           </g>
         </Marker>
       )}
@@ -487,6 +573,7 @@ export default function WorldMap({
   legsThrough = null,
   activeLegIndex = null,
   focusedSlug = null,
+  sparkle = false,
   placeSlugs,
   onMoveEnd,
   onCountryHover,
@@ -580,6 +667,17 @@ export default function WorldMap({
             <stop offset="60%" stopColor="#9a4a28" stopOpacity="0.18" />
             <stop offset="100%" stopColor="#9a4a28" stopOpacity="0" />
           </radialGradient>
+          <radialGradient id="sparkle-burst-flat">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+            <stop offset="22%" stopColor="#ffd87f" stopOpacity="0.85" />
+            <stop offset="60%" stopColor="#ff9a3a" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#ff9a3a" stopOpacity="0" />
+          </radialGradient>
+          <radialGradient id="leg-traveler-halo">
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
+            <stop offset="35%" stopColor="#ffd87f" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#ffd87f" stopOpacity="0" />
+          </radialGradient>
         </defs>
 
         {/* Ocean stripe across the duplicated worlds */}
@@ -619,6 +717,7 @@ export default function WorldMap({
                 legsThrough={legsThrough}
                 activeLegIndex={activeLegIndex}
                 focusedSlug={focusedSlug}
+                sparkle={sparkle}
                 zoom={zoom}
                 nowMs={nowMs}
                 onCountryEnter={onCountryEnter}

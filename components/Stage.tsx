@@ -72,6 +72,16 @@ export default function Stage({ places }: { places: Place[] }) {
     });
   }, [openSlug]);
 
+  // Track the *latest* view inside a ref so the stop-scrub effect can read it
+  // without forcing a re-run when only the view changes.  Previously this
+  // useEffect listed `view` in its deps, which meant switching from Globe to
+  // Flat would call setZoom(Math.max(z, 3)) and slam the flat map into a
+  // zoomed-in state with no scrubbing involved.
+  const viewRef = useRef(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
   // Timeline scrub → fly to that stop
   useEffect(() => {
     if (stop <= 0 || stop > LEGS.length + 1) return;
@@ -80,8 +90,21 @@ export default function Stage({ places }: { places: Place[] }) {
     if (!target) return;
     setFocusedSlug(slug);
     setCenter(target.coordinates);
-    setZoom((z) => (view === "flat" ? Math.max(z, 3) : 2.6));
-  }, [stop, view]);
+    setZoom((z) =>
+      viewRef.current === "flat" ? Math.max(z, 3) : 2.6,
+    );
+  }, [stop]);
+
+  // View change → reset to view-appropriate defaults.  Flat map should always
+  // start "All" view (full world, zoom 0.85) when the user switches into it
+  // unless they're actively scrubbing.
+  useEffect(() => {
+    if (view === "flat" && stop <= 0) {
+      setCenter(CONTINENT_VIEW.All.center);
+      setZoom(CONTINENT_VIEW.All.zoom);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view]);
 
   const onCountryHover = useCallback((c: string | null) => setHoveredCountry(c), []);
   const onCountryClick = useCallback(
@@ -203,6 +226,7 @@ export default function Stage({ places }: { places: Place[] }) {
                 focusedSlug={focusedSlug}
                 legsThrough={legsThrough}
                 size={860}
+                sparkle={randomSpinning}
                 placeSlugs={placeSlugs}
                 showRoute={layers.trail}
                 showTerminator={layers.dayNight}
@@ -230,6 +254,7 @@ export default function Stage({ places }: { places: Place[] }) {
                 legsThrough={legsThrough}
                 activeLegIndex={activeLegIndex}
                 focusedSlug={focusedSlug}
+                sparkle={randomSpinning}
                 placeSlugs={placeSlugs}
                 showRoute={layers.trail}
                 showTerminator={layers.dayNight}

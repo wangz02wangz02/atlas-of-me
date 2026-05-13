@@ -41,6 +41,9 @@ type Props = {
   showHeatmap?: boolean;
   legsThrough?: number | null;
   size?: number;
+  /** When true, the focus marker shines/sparkles brighter — used during the
+   *  Random Place spinner. */
+  sparkle?: boolean;
   placeSlugs?: Set<string>;
   onCountryHover?: (countryName: string | null) => void;
   onCountryClick?: (countryName: string) => void;
@@ -120,6 +123,7 @@ const GlobeSVG = memo(function GlobeSVG({
   showHeatmap,
   legsThrough,
   focusedSlug,
+  sparkle,
   nowMs,
   onCountryEnter,
   onCountryClick,
@@ -140,6 +144,7 @@ const GlobeSVG = memo(function GlobeSVG({
   showHeatmap: boolean;
   legsThrough: number | null;
   focusedSlug: string | null;
+  sparkle: boolean;
   nowMs: number;
   onCountryEnter: (name: string) => void;
   onCountryClick: (name: string, hasPlace: boolean) => void;
@@ -222,6 +227,12 @@ const GlobeSVG = memo(function GlobeSVG({
           <stop offset="0%" stopColor="#9a4a28" stopOpacity="0.9" />
           <stop offset="60%" stopColor="#9a4a28" stopOpacity="0.18" />
           <stop offset="100%" stopColor="#9a4a28" stopOpacity="0" />
+        </radialGradient>
+        <radialGradient id="sparkle-burst-globe">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
+          <stop offset="22%" stopColor="#ffd87f" stopOpacity="0.9" />
+          <stop offset="60%" stopColor="#ff9a3a" stopOpacity="0.4" />
+          <stop offset="100%" stopColor="#ff9a3a" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -325,18 +336,55 @@ const GlobeSVG = memo(function GlobeSVG({
         });
       })()}
 
-      {/* Focus pulse on current scrubbed stop */}
+      {/* Focus pulse on current scrubbed stop — sparkles much brighter while
+       *  the Random Place spinner is running so the eye can follow it. */}
       {focusedPlace && visibleByPlace.get(focusedPlace.slug) && (
         <Marker coordinates={focusedPlace.coordinates}>
           <g pointerEvents="none">
-            <motion.circle
-              r={22}
-              fill="url(#focus-pulse)"
-              initial={{ opacity: 0.9, scale: 0.6 }}
-              animate={{ opacity: [0.9, 0.2, 0.9], scale: [0.6, 1.4, 0.6] }}
-              transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-            />
-            <circle r={3} fill="#9a4a28" stroke="#fff" strokeWidth={1} />
+            {sparkle ? (
+              <>
+                <motion.circle
+                  r={40}
+                  fill="url(#sparkle-burst-globe)"
+                  initial={{ opacity: 0.9, scale: 0.4 }}
+                  animate={{ opacity: [1, 0.3, 1], scale: [0.55, 1.5, 0.55] }}
+                  transition={{
+                    duration: 0.55,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
+                />
+                <motion.g
+                  initial={{ rotate: 0 }}
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+                >
+                  <line x1={-28} y1={0} x2={28} y2={0} stroke="#ffd87f" strokeWidth={1.6} strokeLinecap="round" />
+                  <line x1={0} y1={-28} x2={0} y2={28} stroke="#ffd87f" strokeWidth={1.6} strokeLinecap="round" />
+                </motion.g>
+                <motion.g
+                  initial={{ rotate: 45 }}
+                  animate={{ rotate: 45 - 360 }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "linear" }}
+                >
+                  <line x1={-16} y1={0} x2={16} y2={0} stroke="#fff2d7" strokeWidth={1} strokeLinecap="round" opacity={0.9} />
+                  <line x1={0} y1={-16} x2={0} y2={16} stroke="#fff2d7" strokeWidth={1} strokeLinecap="round" opacity={0.9} />
+                </motion.g>
+                <circle r={4} fill="#ffffff" />
+                <circle r={1.8} fill="#9a4a28" />
+              </>
+            ) : (
+              <>
+                <motion.circle
+                  r={22}
+                  fill="url(#focus-pulse)"
+                  initial={{ opacity: 0.9, scale: 0.6 }}
+                  animate={{ opacity: [0.9, 0.2, 0.9], scale: [0.6, 1.4, 0.6] }}
+                  transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+                />
+                <circle r={3} fill="#9a4a28" stroke="#fff" strokeWidth={1} />
+              </>
+            )}
           </g>
         </Marker>
       )}
@@ -496,6 +544,7 @@ function GlobeImpl({
   showHeatmap = false,
   legsThrough = null,
   size = 520,
+  sparkle = false,
   placeSlugs,
   onCountryHover,
   onCountryClick,
@@ -715,6 +764,7 @@ function GlobeImpl({
         showHeatmap={showHeatmap}
         legsThrough={legsThrough}
         focusedSlug={focusedSlug}
+        sparkle={sparkle}
         nowMs={nowMs}
         onCountryEnter={onCountryEnter}
         onCountryClick={onCountryClickInner}

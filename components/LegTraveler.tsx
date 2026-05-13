@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Marker, useMapContext } from "react-simple-maps";
+import { motion } from "motion/react";
 import { geoInterpolate } from "d3-geo";
 import type { TransportMode } from "@/lib/places-types";
 import { MODE_STYLE } from "@/lib/places";
@@ -18,9 +19,22 @@ function smoothstep(k: number) {
   return k * k * (3 - 2 * k);
 }
 
+const FLIGHT_DUR = 1800;
+const PAUSE_DUR = 1400;
+const CYCLE = FLIGHT_DUR + PAUSE_DUR;
+
 /**
- * Plane (or mode-specific glyph) that rides along the current leg's arc.
- * Animates 0 → 1 whenever `legKey` changes; leaves a growing dashed trail.
+ * Plane (or mode-specific glyph) that rides along the current leg's arc with
+ * a growing dashed trail behind it.
+ *
+ * The plane never sits still — it loops the leg continuously (~1.8s flight +
+ * 1.4s pause at the destination, then resets and flies again) so the map
+ * always has visible motion, the way the line traces across the map in
+ * Indiana Jones.  When the active leg changes (legKey), the plane snaps to
+ * the new leg's start and the loop continues from there.
+ *
+ * Update rate is 20fps via setInterval rather than 60fps RAF: more than
+ * smooth enough for plane travel and keeps the parent SVG cheap.
  */
 export default function LegTraveler({
   fromCoord,
@@ -32,29 +46,17 @@ export default function LegTraveler({
   const { projection } = useMapContext() as {
     projection: (c: [number, number]) => [number, number] | null;
   };
-  const [t, setT] = useState(1);
-  const prevKey = useRef<number | null>(null);
+  const [t, setT] = useState(0);
 
   useEffect(() => {
-    // First mount: no animation, just park at destination.
-    if (prevKey.current === null) {
-      prevKey.current = legKey;
-      setT(1);
-      return;
-    }
-    if (prevKey.current === legKey) return;
-    prevKey.current = legKey;
     setT(0);
-    let raf = 0;
-    const t0 = performance.now();
-    const dur = 1100;
-    const step = () => {
-      const raw = Math.min(1, (performance.now() - t0) / dur);
-      setT(smoothstep(raw));
-      if (raw < 1) raf = requestAnimationFrame(step);
-    };
-    raf = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(raf);
+    const cycleStart = performance.now();
+    const id = window.setInterval(() => {
+      const cycleT = (performance.now() - cycleStart) % CYCLE;
+      const flightT = Math.min(1, cycleT / FLIGHT_DUR);
+      setT(smoothstep(flightT));
+    }, 50);
+    return () => clearInterval(id);
   }, [legKey]);
 
   const interp = useMemo(
@@ -113,26 +115,47 @@ export default function LegTraveler({
   const dy = aheadT > t ? pB[1] - pA[1] : pA[1] - pB[1];
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
   const color = MODE_STYLE[mode].color;
-  const size = 11 / zoom;
+  // Plane is sized in *screen* pixels (not zoom-scaled) so it stays
+  // readable when zoomed out and doesn't get cartoonishly huge zoomed in.
+  const size = Math.max(14, Math.min(26, 20 / zoom));
 
   return (
     <>
       {trailPath && (
-        <path
-          d={trailPath}
-          stroke={color}
-          strokeWidth={1.4 / zoom}
-          strokeDasharray={`${4 / zoom} ${3 / zoom}`}
-          strokeLinecap="round"
-          fill="none"
-          opacity={0.95}
-          pointerEvents="none"
-        />
+        <>
+          {/* soft glow under the trail so it pops on light land */}
+          <path
+            d={trailPath}
+            stroke={color}
+            strokeWidth={3.6 / zoom}
+            strokeOpacity={0.18}
+            strokeLinecap="round"
+            fill="none"
+            pointerEvents="none"
+          />
+          <path
+            d={trailPath}
+            stroke={color}
+            strokeWidth={1.7 / zoom}
+            strokeDasharray={`${4 / zoom} ${3 / zoom}`}
+            strokeLinecap="round"
+            fill="none"
+            opacity={0.98}
+            pointerEvents="none"
+          />
+        </>
       )}
       <Marker coordinates={pos}>
         <g pointerEvents="none">
-          {/* soft halo so the icon reads on any background */}
-          <circle r={size * 0.95} fill="rgba(255,255,255,0.55)" />
+          {/* Pulsing bright halo so the plane is unmistakable */}
+          <motion.circle
+            r={size * 1.4}
+            fill="url(#leg-traveler-halo)"
+            initial={{ opacity: 0.5, scale: 0.85 }}
+            animate={{ opacity: [0.45, 0.9, 0.45], scale: [0.85, 1.05, 0.85] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <circle r={size * 0.95} fill="rgba(255,255,255,0.65)" />
           <g transform={`rotate(${angle.toFixed(2)})`}>
             <ModeIcon mode={mode} size={size} color={color} />
           </g>
