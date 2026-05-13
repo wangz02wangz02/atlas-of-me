@@ -130,19 +130,26 @@ function planeRoutePath(
     const len = Math.hypot(dx, dy);
     if (len < 0.1) return null;
 
-    // Perpendicular vector. Pick the variant that points "up" in screen
-    // space so every arc bulges toward the top of the map (north on
-    // equirectangular).
+    // Gentle curvature only: short hops draw essentially straight, long
+    // hauls get a moderate bow toward the top of the map. The user
+    // previously called the heavy arcs "way too curved" — these
+    // values keep the line smooth rather than performative.
+    //  factor 0.07  → for a 300px chord, ~21px offset (subtle)
+    //  cap     55px → no leg gets more than a modest bow
+    const offset = Math.min(len * 0.07, 55);
+    // Below ~3px the curve isn't perceptible — render as a straight
+    // line instead, which is cleaner than a degenerate Bezier.
+    if (offset < 3) {
+      return `M${pa[0].toFixed(2)},${pa[1].toFixed(2)} L${pb[0].toFixed(2)},${pb[1].toFixed(2)}`;
+    }
+
+    // Perpendicular pointing toward the top of the map (negative y).
     let px = -dy / len;
     let py = dx / len;
     if (py > 0) {
       px = -px;
       py = -py;
     }
-
-    // Offset proportional to chord length, with sensible bounds so short
-    // hops still have a visible curve and long hauls don't loop forever.
-    const offset = Math.max(14, Math.min(len * 0.18, 140));
     const mx = (pa[0] + pb[0]) / 2 + px * offset;
     const my = (pa[1] + pb[1]) / 2 + py * offset;
 
