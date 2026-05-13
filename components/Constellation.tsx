@@ -169,9 +169,9 @@ const ConstellationSVG = memo(function ConstellationSVG({
     >
       <defs>
         <radialGradient id="con-sphere" cx="38%" cy="34%" r="74%">
-          <stop offset="0%" stopColor="#0c1424" />
-          <stop offset="60%" stopColor="#070c18" />
-          <stop offset="100%" stopColor="#020409" />
+          <stop offset="0%" stopColor="#2b3760" />
+          <stop offset="55%" stopColor="#161d35" />
+          <stop offset="100%" stopColor="#0a0f20" />
         </radialGradient>
         <radialGradient id="star-glow">
           <stop offset="0%" stopColor="#fde8b8" stopOpacity="1" />
@@ -439,7 +439,7 @@ function ConstellationImpl({
         aspectRatio: "1 / 1",
         maxWidth: size,
         background:
-          "radial-gradient(circle at 50% 50%, rgba(253,232,184,0.10) 47%, rgba(253,232,184,0.18) 49%, rgba(253,232,184,0) 56%)",
+          "radial-gradient(circle at 50% 50%, rgba(253,232,184,0.14) 47%, rgba(253,232,184,0.26) 49%, rgba(253,232,184,0) 56%)",
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -499,7 +499,7 @@ function ConstellationImpl({
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
             transition={{ duration: 0.24 }}
-            className="absolute left-1/2 top-[68%] z-10 w-[min(440px,86%)] -translate-x-1/2 rounded-md border border-white/15 bg-black/72 p-4 text-paper shadow-2xl backdrop-blur"
+            className="absolute left-1/2 top-[60%] z-10 w-[min(520px,90%)] -translate-x-1/2 rounded-md border border-white/15 bg-black/72 p-4 text-paper shadow-2xl backdrop-blur"
           >
             <div className="flex items-center justify-between">
               <div className="text-[10px] uppercase tracking-[0.3em] text-paper/60">
@@ -517,13 +517,19 @@ function ConstellationImpl({
                 {(best.similarity * 100).toFixed(0)}% match
               </div>
             </div>
-            <p className="mt-2 text-[12px] leading-snug text-paper/85">
+
+            <MatchDiagram match={best} />
+
+            <p className="mt-3 text-[12px] leading-snug text-paper/85">
               {best.constellation.story}
             </p>
-            <div className="mt-3 flex items-center gap-3 border-t border-white/10 pt-2 text-[10px] text-paper/55">
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-2 text-[10px] text-paper/55">
               <span className="uppercase tracking-[0.22em]">Also like</span>
               {matches.slice(1, 4).map((m) => (
-                <span key={m.constellation.abbr} className="uppercase tracking-[0.18em]">
+                <span
+                  key={m.constellation.abbr}
+                  className="uppercase tracking-[0.18em]"
+                >
                   {m.constellation.name}{" "}
                   <span className="text-paper/40">
                     {(m.similarity * 100).toFixed(0)}%
@@ -551,6 +557,163 @@ function ConstellationImpl({
   );
 }
 
+/**
+ * Side-by-side overlay diagram for the constellation reveal panel.  Shows the
+ * traveler's full journey path (faint amber) with the matched constellation
+ * shape rotated/reflected onto it (bright cream stars and lines).  The
+ * constellation traces in over ~1.5s and the stars pop in one by one.
+ */
+function MatchDiagram({ match }: { match: Match }) {
+  // Diagram viewBox: 240×170. Both journey and aligned constellation live in
+  // [-1, 1] coords after normalize(). Scale to fit with padding.
+  const VW = 240;
+  const VH = 170;
+  const scale = 64;
+  const cx = VW / 2;
+  const cy = VH / 2 + 4;
+  const toX = (p: [number, number]) => cx + p[0] * scale;
+  const toY = (p: [number, number]) => cy + p[1] * scale;
+
+  const journey = match.journeyNormFull;
+  const journeyPath = useMemo(() => {
+    if (!journey.length) return "";
+    const parts = journey.map(
+      (p, i) => `${i === 0 ? "M" : "L"}${toX(p).toFixed(2)},${toY(p).toFixed(2)}`,
+    );
+    return parts.join(" ");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journey]);
+
+  const aligned = match.shapeAligned;
+  const conPath = useMemo(() => {
+    if (!aligned.length) return "";
+    const parts = aligned.map(
+      (p, i) => `${i === 0 ? "M" : "L"}${toX(p).toFixed(2)},${toY(p).toFixed(2)}`,
+    );
+    return parts.join(" ");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aligned]);
+
+  return (
+    <div className="mt-3 overflow-hidden rounded-md border border-white/10 bg-black/40 p-2">
+      <div className="mb-1 flex items-center justify-between text-[9px] uppercase tracking-[0.22em] text-paper/55">
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-1 w-3 rounded-full bg-[#b6803a]/70" />
+          your trip
+        </span>
+        <span className="text-paper/40">overlay · approx fit</span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-1 w-3 rounded-full bg-[#fde8b8]" />
+          {match.constellation.name}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${VW} ${VH}`}
+        width="100%"
+        className="block"
+        aria-hidden
+      >
+        <defs>
+          <radialGradient id="diag-star-glow">
+            <stop offset="0%" stopColor="#fde8b8" stopOpacity="0.9" />
+            <stop offset="60%" stopColor="#ffd87f" stopOpacity="0.25" />
+            <stop offset="100%" stopColor="#ffd87f" stopOpacity="0" />
+          </radialGradient>
+        </defs>
+
+        {/* faint frame so the diagram reads as its own box */}
+        <rect
+          x={0.5}
+          y={0.5}
+          width={VW - 1}
+          height={VH - 1}
+          rx={4}
+          fill="none"
+          stroke="rgba(253,232,184,0.08)"
+        />
+
+        {/* Journey path — faint amber polyline */}
+        <path
+          d={journeyPath}
+          stroke="#b6803a"
+          strokeWidth={0.9}
+          strokeOpacity={0.55}
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Journey dots */}
+        {journey.map((p, i) => (
+          <circle
+            key={`j-${i}`}
+            cx={toX(p)}
+            cy={toY(p)}
+            r={0.9}
+            fill="#b6803a"
+            fillOpacity={0.6}
+          />
+        ))}
+
+        {/* Constellation lines — trace in over 1.5s */}
+        <motion.path
+          key={`con-${match.constellation.abbr}`}
+          d={conPath}
+          stroke="#fde8b8"
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          initial={{ pathLength: 0, opacity: 0 }}
+          animate={{ pathLength: 1, opacity: 0.9 }}
+          transition={{
+            pathLength: { duration: 1.5, ease: "easeInOut" },
+            opacity: { duration: 0.3 },
+          }}
+        />
+
+        {/* Constellation stars — fade in one by one */}
+        {aligned.map((p, i) => (
+          <g key={`s-${match.constellation.abbr}-${i}`}>
+            <motion.circle
+              cx={toX(p)}
+              cy={toY(p)}
+              r={6}
+              fill="url(#diag-star-glow)"
+              initial={{ opacity: 0, scale: 0.4 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.5, delay: 0.4 + i * 0.12 }}
+            />
+            <motion.circle
+              cx={toX(p)}
+              cy={toY(p)}
+              r={2.6}
+              fill="#ffffff"
+              stroke="#fde8b8"
+              strokeWidth={0.6}
+              initial={{ opacity: 0, scale: 0.4 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.4, delay: 0.45 + i * 0.12 }}
+            />
+            <motion.text
+              x={toX(p) + 4}
+              y={toY(p) - 4}
+              fontSize={6}
+              fill="#fde8b8"
+              fillOpacity={0.65}
+              fontFamily="ui-monospace, monospace"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.55 + i * 0.12 }}
+            >
+              {i + 1}
+            </motion.text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
 export default function Constellation(props: Props) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -561,7 +724,7 @@ export default function Constellation(props: Props) {
         style={{ aspectRatio: "1 / 1", maxWidth: props.size ?? 520 }}
         aria-hidden
       >
-        <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_38%_34%,#0c1424_0%,#070c18_55%,#020409_100%)] opacity-80" />
+        <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle_at_38%_34%,#2b3760_0%,#161d35_55%,#0a0f20_100%)] opacity-90" />
       </div>
     );
   }

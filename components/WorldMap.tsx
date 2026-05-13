@@ -13,7 +13,6 @@ import {
   Geographies,
   Geography,
   Marker,
-  Line,
   Sphere,
   ZoomableGroup,
   useMapContext,
@@ -88,6 +87,41 @@ function NightShade({ now }: { now: number }) {
   return <path d={d} fill="rgba(31, 54, 64, 0.16)" pointerEvents="none" />;
 }
 
+/**
+ * Convert a sequence of (lon, lat) into one or more projected polyline
+ * segments, splitting at the antimeridian seam.  In equirectangular space,
+ * a great-circle arc from Tokyo to LA crosses lon=180/-180 and a naive
+ * polyline would draw a straight line back across the entire map; this
+ * detects the X-jump and yields separate segments instead.  The three
+ * wrap copies in the parent then make the two halves visually continuous.
+ */
+function projectSegments(
+  points: Array<[number, number]>,
+  projection: (c: [number, number]) => [number, number] | null,
+): string {
+  const segs: string[] = [];
+  let current: string[] = [];
+  let last: [number, number] | null = null;
+  const SEAM = WORLD_W / 2;
+  for (const p of points) {
+    const proj = projection(p);
+    if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
+      if (current.length > 1) segs.push(`M${current.join("L")}`);
+      current = [];
+      last = null;
+      continue;
+    }
+    if (last && Math.abs(proj[0] - last[0]) > SEAM) {
+      if (current.length > 1) segs.push(`M${current.join("L")}`);
+      current = [];
+    }
+    current.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+    last = [proj[0], proj[1]];
+  }
+  if (current.length > 1) segs.push(`M${current.join("L")}`);
+  return segs.join(" ");
+}
+
 function Trail({
   points,
   color,
@@ -100,21 +134,10 @@ function Trail({
   const { projection } = useMapContext() as {
     projection: (c: [number, number]) => [number, number] | null;
   };
-  const segments = useMemo(() => {
-    const segs: string[] = [];
-    let current: string[] = [];
-    for (const p of points) {
-      const proj = projection(p);
-      if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
-        if (current.length > 1) segs.push(`M${current.join("L")}`);
-        current = [];
-        continue;
-      }
-      current.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
-    }
-    if (current.length > 1) segs.push(`M${current.join("L")}`);
-    return segs.join(" ");
-  }, [points, projection]);
+  const segments = useMemo(
+    () => projectSegments(points, projection),
+    [points, projection],
+  );
   if (!segments) return null;
   return (
     <path
@@ -124,6 +147,53 @@ function Trail({
       strokeWidth={width}
       strokeLinecap="round"
       strokeLinejoin="round"
+    />
+  );
+}
+
+/**
+ * Per-leg colored arc, drawn as a great-circle interpolation and split at the
+ * antimeridian.  Replaces react-simple-maps' built-in `<Line>` which only
+ * connects two endpoints with a straight projected segment — that misses the
+ * curvature of long flights and cuts diagonally across the whole map for
+ * trans-pacific legs.
+ */
+function LegArc({
+  from,
+  to,
+  color,
+  width,
+  dash,
+  opacity,
+}: {
+  from: [number, number];
+  to: [number, number];
+  color: string;
+  width: number;
+  dash?: string;
+  opacity?: number;
+}) {
+  const { projection } = useMapContext() as {
+    projection: (c: [number, number]) => [number, number] | null;
+  };
+  const segments = useMemo(() => {
+    const interp = geoInterpolate(from, to);
+    const STEPS = 36;
+    const pts: Array<[number, number]> = [];
+    for (let i = 0; i <= STEPS; i++) pts.push(interp(i / STEPS));
+    return projectSegments(pts, projection);
+  }, [from, to, projection]);
+  if (!segments) return null;
+  return (
+    <path
+      d={segments}
+      stroke={color}
+      strokeWidth={width}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeDasharray={dash}
+      fill="none"
+      opacity={opacity}
     />
   );
 }
@@ -270,7 +340,8 @@ const MapBody = memo(function MapBody({
         </g>
       )}
 
-      {/* Per-leg lines — only highlight legs connected to the hovered country */}
+      {/* Per-leg arcs — only highlight legs connected to the hovered country
+       *  or the currently scrubbed leg. Great-circle and seam-aware. */}
       {showRoute &&
         legs.slice(0, visibleLegCount).map((leg) => {
           const isCurrent = legsThrough === leg.index;
@@ -280,16 +351,14 @@ const MapBody = memo(function MapBody({
           if (!isConnected && !isCurrent) return null;
           const style = MODE_STYLE[leg.mode];
           return (
-            <Line
+            <LegArc
               key={leg.index}
               from={leg.fromCoord}
               to={leg.toCoord}
-              stroke={style.color}
-              strokeWidth={(isCurrent ? 1.4 : 1) / zoom}
-              strokeOpacity={0.85}
-              strokeLinecap="round"
-              strokeDasharray={style.dash === "0" ? undefined : style.dash}
-              fill="none"
+              color={style.color}
+              width={(isCurrent ? 1.6 : 1) / zoom}
+              opacity={0.9}
+              dash={style.dash === "0" ? undefined : style.dash}
             />
           );
         })}

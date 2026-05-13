@@ -64,19 +64,33 @@ export default function LegTraveler({
 
   const trailPath = useMemo(() => {
     if (t < 0.001) return null;
+    // Split at the antimeridian seam.  We approximate the seam threshold as
+    // "an X-jump larger than 600 SVG units between two consecutive samples,"
+    // which works for both the orthographic globe (non-finite projection on
+    // the back face) and the flat map (large X delta on lon wrap).
+    const SEAM = 600;
     const steps = 28;
-    const pts: string[] = [];
+    const out: string[] = [];
+    let curr: string[] = [];
+    let last: [number, number] | null = null;
     for (let i = 0; i <= steps; i++) {
       const p = interp((i / steps) * t);
       const proj = projection(p);
       if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
-        // hit the antimeridian seam — give up on this segment
-        if (pts.length > 1) return `M${pts.join("L")}`;
-        return null;
+        if (curr.length > 1) out.push(`M${curr.join("L")}`);
+        curr = [];
+        last = null;
+        continue;
       }
-      pts.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+      if (last && Math.abs(proj[0] - last[0]) > SEAM) {
+        if (curr.length > 1) out.push(`M${curr.join("L")}`);
+        curr = [];
+      }
+      curr.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+      last = [proj[0], proj[1]];
     }
-    return pts.length > 1 ? `M${pts.join("L")}` : null;
+    if (curr.length > 1) out.push(`M${curr.join("L")}`);
+    return out.length ? out.join(" ") : null;
   }, [interp, projection, t]);
 
   const pos = interp(t);

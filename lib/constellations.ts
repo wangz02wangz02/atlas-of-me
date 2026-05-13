@@ -570,14 +570,17 @@ function reflectX(b: P[]): P[] {
   return b.map(([x, y]) => [-x, y] as P);
 }
 
-/** Best-fit residual under rotation + optional reflection. */
-function bestFit(a: P[], b: P[]): number {
+/** Best-fit residual under rotation + optional reflection.
+ *  Returns the residual AND the aligned version of `b` so the caller can
+ *  overlay it visually on `a`. */
+function bestFitWithAlignment(a: P[], b: P[]): { distance: number; aligned: P[] } {
   const r1 = rotateBToA(a, b);
   const m1 = msd(a, r1);
   const bRef = reflectX(b);
   const r2 = rotateBToA(a, bRef);
   const m2 = msd(a, r2);
-  return Math.min(m1, m2);
+  if (m1 <= m2) return { distance: m1, aligned: r1 };
+  return { distance: m2, aligned: r2 };
 }
 
 export type Match = {
@@ -586,6 +589,11 @@ export type Match = {
   distance: number;
   /** Higher is better, derived from distance for the UI. */
   similarity: number;
+  /** Full journey, normalized (centroid 0, max-radius 1). For the overlay. */
+  journeyNormFull: P[];
+  /** Constellation shape rotated/reflected to best overlay the journey,
+   *  expressed in the same normalized coordinate space as journeyNormFull. */
+  shapeAligned: P[];
 };
 
 /**
@@ -597,17 +605,24 @@ export type Match = {
  */
 export function matchConstellation(journeyPoints: P[]): Match[] {
   if (journeyPoints.length < 3) return [];
-  // Resample to the same point count as each constellation, so we always
-  // compare apples to apples.
+  // Normalize the full journey first so both the resampled-for-matching set
+  // AND the journey shown in the overlay diagram live in the same coordinate
+  // space.  This lets us draw the aligned constellation directly on top of
+  // the full journey path with no extra transform.
+  const journeyNorm = normalize(journeyPoints);
+
   const results: Match[] = CONSTELLATIONS.map((con) => {
     const n = con.shape.length;
-    const journeyRes = resamplePolyline(journeyPoints, n);
-    const a = normalize(journeyRes);
-    const b = normalize(con.shape);
-    const d = bestFit(a, b);
-    // Map distance (0 = perfect, 4 = terrible) to similarity ∈ (0, 1].
-    const sim = 1 / (1 + d);
-    return { constellation: con, distance: d, similarity: sim };
+    const journeyRes = resamplePolyline(journeyNorm, n);
+    const conNorm = normalize(con.shape);
+    const { distance, aligned } = bestFitWithAlignment(journeyRes, conNorm);
+    return {
+      constellation: con,
+      distance,
+      similarity: 1 / (1 + distance),
+      journeyNormFull: journeyNorm,
+      shapeAligned: aligned,
+    };
   });
   results.sort((a, b) => b.similarity - a.similarity);
   return results;

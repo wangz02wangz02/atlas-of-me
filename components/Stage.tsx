@@ -221,7 +221,7 @@ export default function Stage({ places }: { places: Place[] }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.99 }}
               transition={{ duration: 0.32 }}
-              className="w-[min(78vw,1040px)]"
+              className="w-[min(96vw,1500px)]"
             >
               <WorldMap
                 places={places}
@@ -276,7 +276,7 @@ export default function Stage({ places }: { places: Place[] }) {
             className="pointer-events-none fixed inset-0 -z-10"
             style={{
               background:
-                "radial-gradient(circle at 50% 40%, #1c2236 0%, #0a0d18 60%, #050810 100%)",
+                "radial-gradient(circle at 50% 40%, #3b4570 0%, #1d2340 55%, #0e1426 100%)",
             }}
           />
         )}

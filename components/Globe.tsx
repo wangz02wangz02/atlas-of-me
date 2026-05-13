@@ -516,42 +516,90 @@ function GlobeImpl({
   const interactingAt = useRef<number>(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
+  // Mirror of `rotate` so the fly-to animation can read the real-time
+  // rotation even when React hasn't re-rendered yet between rapid
+  // focusedSlug changes.  Without this, the animation captures a stale
+  // rotate via closure and the globe appears to "shake" while it tries
+  // to interpolate from a no-longer-true starting point.
+  const rotateRef = useRef<[number, number, number]>(rotate);
+  useEffect(() => {
+    rotateRef.current = rotate;
+  }, [rotate]);
+  const lastFocusAt = useRef<number>(0);
+
   // Tick clocks every 30s — clocks layer only renders if enabled
   useEffect(() => {
     const id = setInterval(() => setNowMs(Date.now()), 30_000);
     return () => clearInterval(id);
   }, []);
 
-  // Fly to focused city
+  // Fly to focused city.  Reads the current rotation via rotateRef so that
+  // rapid focusedSlug changes (random spinner, fast filmstrip scrub) start
+  // each new animation from where the globe actually IS, not from a stale
+  // closure value.  And if changes come in faster than the animation can
+  // play, we snap instead of starting an overlapping interpolation.
   useEffect(() => {
     if (!focusedSlug) return;
     const place = places.find((p) => p.slug === focusedSlug);
     if (!place) return;
+
+    const now = performance.now();
+    const sinceLast = now - lastFocusAt.current;
+    lastFocusAt.current = now;
+
     const target: [number, number, number] = [
       -place.coordinates[0],
       -place.coordinates[1],
       0,
     ];
-    interactingAt.current = performance.now();
-    let raf: number;
-    const start = rotate;
+    interactingAt.current = now;
+
+    // If focus is changing faster than a comfortable animation can play,
+    // just snap.  Avoids the "shake" of two interpolations fighting.
+    if (sinceLast < 260) {
+      const startSnap = rotateRef.current;
+      let dl = target[0] - startSnap[0];
+      while (dl > 180) dl -= 360;
+      while (dl < -180) dl += 360;
+      const snapped: [number, number, number] = [
+        startSnap[0] + dl,
+        target[1],
+        0,
+      ];
+      rotateRef.current = snapped;
+      setRotate(snapped);
+      return;
+    }
+
+    const start: [number, number, number] = [
+      rotateRef.current[0],
+      rotateRef.current[1],
+      rotateRef.current[2],
+    ];
+    let raf = 0;
     const t0 = performance.now();
     const dur = 900;
     const ease = (t: number) =>
       t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    let dl = target[0] - start[0];
+    while (dl > 180) dl -= 360;
+    while (dl < -180) dl += 360;
+    const dp = target[1] - start[1];
     const step = () => {
       const t = Math.min(1, (performance.now() - t0) / dur);
       const k = ease(t);
-      let dl = target[0] - start[0];
-      while (dl > 180) dl -= 360;
-      while (dl < -180) dl += 360;
-      setRotate([start[0] + dl * k, start[1] + (target[1] - start[1]) * k, 0]);
+      const next: [number, number, number] = [
+        start[0] + dl * k,
+        start[1] + dp * k,
+        0,
+      ];
+      rotateRef.current = next;
+      setRotate(next);
       if (t < 1) raf = requestAnimationFrame(step);
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusedSlug]);
+  }, [focusedSlug, places]);
 
   const onPointerDown = (e: React.PointerEvent) => {
     dragging.current = true;
@@ -579,7 +627,9 @@ function GlobeImpl({
     setRotate(([l, p, g]) => {
       const nl = (l + (dx * 0.4) / zoom) % 360;
       const np = Math.max(-89, Math.min(89, p - (dy * 0.4) / zoom));
-      return [nl, np, g];
+      const next: [number, number, number] = [nl, np, g];
+      rotateRef.current = next;
+      return next;
     });
     interactingAt.current = performance.now();
   };
