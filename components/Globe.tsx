@@ -202,34 +202,32 @@ const GlobeSVG = memo(function GlobeSVG({
     >
       <defs>
         {/* Vintage globe ocean — deep aged-ink teal at the limb, easing to
-         *  a warm slate at the highlighted face. Matches the project's
-         *  warm paper aesthetic but with real depth so it doesn't read
-         *  flat. */}
+         *  a warm slate at the highlighted face. */}
         <radialGradient id="ocean" cx="36%" cy="32%" r="76%">
           <stop offset="0%" stopColor="#4b6878" />
           <stop offset="48%" stopColor="#2c4858" />
           <stop offset="82%" stopColor="#152633" />
           <stop offset="100%" stopColor="#0a1620" />
         </radialGradient>
-        {/* Land — sun-aged parchment, brighter on the lit face and
-         *  deepening to warm umber in the shadowed band. */}
+        {/* Unvisited land — cool sandstone, intentionally muted so the
+         *  visited countries can pop. */}
         <linearGradient id="land" x1="0.3" x2="0.7" y1="0" y2="1">
-          <stop offset="0%" stopColor="#e6cb95" />
-          <stop offset="55%" stopColor="#b9905c" />
-          <stop offset="100%" stopColor="#7d5d33" />
+          <stop offset="0%" stopColor="#d3c2a3" />
+          <stop offset="55%" stopColor="#917a55" />
+          <stop offset="100%" stopColor="#5a4a30" />
         </linearGradient>
         {/* Hover highlight — same family but lifted. */}
         <linearGradient id="land-highlight" x1="0.3" x2="0.7" y1="0" y2="1">
-          <stop offset="0%" stopColor="#fff1cb" />
-          <stop offset="60%" stopColor="#e3bf80" />
-          <stop offset="100%" stopColor="#a88245" />
+          <stop offset="0%" stopColor="#fff5da" />
+          <stop offset="55%" stopColor="#f0c98a" />
+          <stop offset="100%" stopColor="#b08146" />
         </linearGradient>
-        {/* Visited countries — saturated amber that pops against the
-         *  unvisited parchment. */}
+        {/* Visited countries — vivid saturated amber-gold that reads
+         *  immediately against the muted parchment. */}
         <linearGradient id="land-place" x1="0.3" x2="0.7" y1="0" y2="1">
-          <stop offset="0%" stopColor="#f5cf86" />
-          <stop offset="55%" stopColor="#c8893a" />
-          <stop offset="100%" stopColor="#8a5a1e" />
+          <stop offset="0%" stopColor="#ffd87a" />
+          <stop offset="50%" stopColor="#e89a35" />
+          <stop offset="100%" stopColor="#9a4f12" />
         </linearGradient>
         {/* Thin warm atmospheric rim. */}
         <radialGradient id="atmosphere" cx="50%" cy="50%" r="50%">
@@ -452,20 +450,21 @@ const GlobeSVG = memo(function GlobeSVG({
       )}
 
       {/* Markers — visible-side only.
-       *  Each visited city renders as a small map-style pin: a stem rising
-       *  from the surface, a glowing head, a small base ring. Paris (hub)
-       *  gets a taller stem and a brighter cream head so it reads as the
-       *  anchor of the whole journey. */}
+       *  Globe markers are jewel-style rather than upright pins: a glowing
+       *  gem sitting on the planet surface. Pins look unnatural on a 3D
+       *  sphere because the "stem" should follow the surface normal at
+       *  each point — a jewel reads correctly from every angle, and the
+       *  ambient halo makes visited cities luminous against the land. */}
       {places.map((place) => {
         const visible = visibleByPlace.get(place.slug);
         if (!visible) return null;
         const isHub = place.slug === PARIS_SLUG;
-        const stem = isHub ? 14 : 10;
-        const headR = isHub ? 3.6 : 2.6;
-        const haloR = isHub ? 14 : 10;
-        const baseR = isHub ? 1.8 : 1.3;
-        const headFill = isHub ? "#fde8b8" : "#f2b35a";
-        const headStroke = "#3a2a14";
+        const haloR = isHub ? 13 : 8.5;
+        const ringR = isHub ? 5.2 : 3.6;
+        const gemR = isHub ? 3.1 : 2.1;
+        const gemFill = isHub ? "#fde8b8" : "#f5b342";
+        const gemStroke = "#5a2e10";
+        const ringStroke = isHub ? "rgba(253, 232, 184, 0.55)" : "rgba(245, 179, 66, 0.45)";
         return (
           <Marker
             key={place.slug}
@@ -480,60 +479,56 @@ const GlobeSVG = memo(function GlobeSVG({
             }}
           >
             <g>
-              {/* Ambient halo around the head */}
+              {/* Ambient outer halo */}
               <circle
-                cy={-stem}
                 r={haloR}
                 fill={`url(#${isHub ? "globe-marker-paris" : "globe-marker"})`}
               />
-              {/* Base ring on the surface */}
+              {/* Soft inner ring */}
               <circle
-                r={baseR}
-                fill="#3a2a14"
+                r={ringR}
+                fill="none"
+                stroke={ringStroke}
+                strokeWidth={0.55}
+              />
+              {/* Hub gets an outer star burst — 4 short rays */}
+              {isHub && (
+                <g>
+                  <line x1={-haloR * 0.95} y1={0} x2={-ringR * 1.1} y2={0} stroke={ringStroke} strokeWidth={0.6} strokeLinecap="round" />
+                  <line x1={ringR * 1.1} y1={0} x2={haloR * 0.95} y2={0} stroke={ringStroke} strokeWidth={0.6} strokeLinecap="round" />
+                  <line x1={0} y1={-haloR * 0.95} x2={0} y2={-ringR * 1.1} stroke={ringStroke} strokeWidth={0.6} strokeLinecap="round" />
+                  <line x1={0} y1={ringR * 1.1} x2={0} y2={haloR * 0.95} stroke={ringStroke} strokeWidth={0.6} strokeLinecap="round" />
+                </g>
+              )}
+              {/* Gem outer rim */}
+              <circle
+                r={gemR + 0.4}
+                fill={gemStroke}
+                opacity={0.85}
+              />
+              {/* Gem body */}
+              <circle
+                r={gemR}
+                fill={gemFill}
+              />
+              {/* Faceted highlight (top-left) */}
+              <path
+                d={`M ${-gemR * 0.7} ${-gemR * 0.3} A ${gemR * 0.95} ${gemR * 0.95} 0 0 1 ${gemR * 0.3} ${-gemR * 0.7} L 0 0 Z`}
+                fill="#ffffff"
                 opacity={0.45}
               />
+              {/* Bright specular pinpoint */}
               <circle
-                r={baseR * 0.55}
-                fill={headFill}
-              />
-              {/* Stem from surface to pin head */}
-              <line
-                x1={0}
-                y1={0}
-                x2={0}
-                y2={-stem}
-                stroke="#3a2a14"
-                strokeWidth={isHub ? 1.6 : 1.2}
-                strokeLinecap="round"
-              />
-              <line
-                x1={0}
-                y1={-1}
-                x2={0}
-                y2={-stem + 1}
-                stroke="#9a4a28"
-                strokeOpacity={0.85}
-                strokeWidth={isHub ? 0.8 : 0.55}
-                strokeLinecap="round"
-              />
-              {/* Pin head */}
-              <circle
-                cx={0}
-                cy={-stem}
-                r={headR}
-                fill={headFill}
-                stroke={headStroke}
-                strokeWidth={0.8}
-              />
-              {/* Highlight reflection on the head */}
-              <ellipse
-                cx={-headR * 0.32}
-                cy={-stem - headR * 0.42}
-                rx={headR * 0.42}
-                ry={headR * 0.28}
+                cx={-gemR * 0.35}
+                cy={-gemR * 0.45}
+                r={gemR * 0.32}
                 fill="#ffffff"
-                opacity={0.8}
+                opacity={0.85}
               />
+              {/* Hub's bright core */}
+              {isHub && (
+                <circle r={gemR * 0.3} fill="#ffffff" opacity={0.9} />
+              )}
             </g>
           </Marker>
         );

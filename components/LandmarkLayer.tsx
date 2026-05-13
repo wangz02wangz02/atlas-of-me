@@ -17,7 +17,8 @@ import type { Place } from "@/lib/places-types";
  * postcards rather than icons from a stock library.
  */
 
-// Reused palette tokens
+// Shared palette tokens. Each landmark mixes its own subset so the icons
+// don't all read as the same dusty-tan family.
 const STONE = "#8a6a3e";
 const STONE_DARK = "#5a3f1f";
 const STONE_LIGHT = "#c8a160";
@@ -26,14 +27,43 @@ const ROOF_DARK = "#6a2e16";
 const SAND = "#d9b277";
 const SAND_DARK = "#b08146";
 const GOLD = "#d8a657";
+const BRASS = "#d4a444";
 const CREAM = "#fde8b8";
+const IVORY = "#fff5e0";
 const SNOW = "#fffaf0";
 const SKY = "#7aa0b6";
 const SEA = "#3f6d83";
-const COPPER = "#6e9b80";
+const HARBOR = "#3a6788";
+const COPPER_GREEN = "#7aa089";
+const COPPER_GREEN_DARK = "#4f7861";
+const VERDANT = "#5e8c52";
+const FOREST = "#3f5f3a";
+const MOSS = "#5a7349";
+const JADE = "#4a8f6e";
+const SLATE = "#5a6c7a";
+const SLATE_LIGHT = "#94a4b2";
+const TURQUOISE = "#5fb4b0";
+const TERRACOTTA = "#bd6a3a";
+const PETRA_ROSE = "#c47650";
+const PETRA_ROSE_DARK = "#7d3a1d";
+const ROSE = "#d4868a";
+const ROSE_LIGHT = "#f4b4c8";
+const BLOSSOM = "#f5b3c8";
+const TILE_RED = "#c14a3a";
+const TILE_YELLOW = "#e6c14a";
+const TILE_GREEN = "#2a8e76";
+const TILE_BLUE = "#3a78a5";
+const TILE_PURPLE = "#6c6cc7";
+const ONION_RED = "#bc4a3a";
+const VOLCANIC = "#5e554a";
+const VOLCANIC_DARK = "#34302a";
 const GREEN_DARK = "#3f5f3a";
 const DEEP = "#2a1d10";
 const BLOOD = "#7a2018";
+// Modern-glass accents for towers
+const GLASS_SILVER = "#bccfd9";
+const GLASS_BLUE = "#7da6c4";
+const GLASS_TEAL = "#69a89e";
 
 const LANDMARK: Record<string, ReactElement> = {
   // ---------------------------------------------------------------------------
@@ -127,42 +157,50 @@ const LANDMARK: Record<string, ReactElement> = {
   ),
 
   // ---------------------------------------------------------------------------
-  // Statue of Liberty — United States of America
+  // Statue of Liberty — United States of America (verdigris copper green)
   "United States of America": (
     <g>
       <ellipse cx="0" cy="0.5" rx="7" ry="1" fill={DEEP} opacity="0.25" />
-      {/* pedestal base */}
+      {/* pedestal base — pale stone */}
       <path
         d="M -5 0 L -5 -3 L -4.5 -7 L 4.5 -7 L 5 -3 L 5 0 Z"
-        fill={STONE_LIGHT}
+        fill="#d5cdb4"
         stroke={STONE_DARK}
         strokeWidth="0.35"
       />
-      <rect x="-4" y="-9" width="8" height="2" fill={STONE} stroke={STONE_DARK} strokeWidth="0.3" />
-      {/* tablet in left arm */}
-      <rect x="-3.6" y="-17" width="2.4" height="3" fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.3" />
+      <rect x="-4" y="-9" width="8" height="2" fill="#a89d80" stroke={STONE_DARK} strokeWidth="0.3" />
+      {/* tablet (Declaration tablet) */}
+      <rect x="-3.6" y="-17" width="2.4" height="3" fill="#e6d9b4" stroke={STONE_DARK} strokeWidth="0.3" />
+      <line x1="-3.2" y1="-16.2" x2="-1.6" y2="-16.2" stroke={STONE_DARK} strokeWidth="0.18" />
+      <line x1="-3.2" y1="-15.4" x2="-1.6" y2="-15.4" stroke={STONE_DARK} strokeWidth="0.18" />
       {/* robe body */}
       <path
         d="M -2.2 -9 L -2.6 -16 L -1.8 -22 L 1.8 -22 L 2.6 -16 L 2.2 -9 Z"
-        fill={COPPER}
-        stroke={STONE_DARK}
+        fill={COPPER_GREEN}
+        stroke={COPPER_GREEN_DARK}
         strokeWidth="0.35"
       />
-      {/* head silhouette */}
-      <circle cx="0" cy="-23.4" r="1.5" fill={COPPER} stroke={STONE_DARK} strokeWidth="0.3" />
+      <path d="M 1 -22 L 1.8 -22 L 2.6 -16 L 2.2 -9 L 1.2 -9 Z" fill={COPPER_GREEN_DARK} opacity="0.4" />
+      {/* drape folds */}
+      <line x1="-1.5" y1="-21" x2="-1.5" y2="-9.5" stroke={COPPER_GREEN_DARK} strokeWidth="0.2" />
+      <line x1="0" y1="-21" x2="0" y2="-9.5" stroke={COPPER_GREEN_DARK} strokeWidth="0.2" />
+      <line x1="1.5" y1="-21" x2="1.5" y2="-9.5" stroke={COPPER_GREEN_DARK} strokeWidth="0.2" />
+      {/* head */}
+      <circle cx="0" cy="-23.4" r="1.5" fill={COPPER_GREEN} stroke={COPPER_GREEN_DARK} strokeWidth="0.3" />
       {/* spiked crown */}
       <path
         d="M -2 -24.5 L -1.5 -26 L -0.8 -24.5 L -0.4 -26.4 L 0 -24.5 L 0.4 -26.4 L 0.8 -24.5 L 1.5 -26 L 2 -24.5 Z"
-        fill={COPPER}
-        stroke={STONE_DARK}
+        fill={COPPER_GREEN}
+        stroke={COPPER_GREEN_DARK}
         strokeWidth="0.3"
         strokeLinejoin="round"
       />
       {/* torch arm */}
-      <path d="M 2.4 -19 L 4.4 -28 L 5.4 -32" stroke={COPPER} strokeWidth="1.1" fill="none" strokeLinecap="round" />
+      <path d="M 2.4 -19 L 4.4 -28 L 5.4 -32" stroke={COPPER_GREEN} strokeWidth="1.1" fill="none" strokeLinecap="round" />
       <path d="M 4.6 -32 L 6.6 -32 L 5.6 -30 Z" fill={GOLD} stroke={STONE_DARK} strokeWidth="0.3" />
       {/* flame */}
-      <path d="M 4.8 -32 Q 5.6 -33.5 6.4 -32 Q 5.6 -31 4.8 -32" fill={GOLD} />
+      <path d="M 4.8 -32 Q 5.6 -33.6 6.4 -32 Q 5.6 -31 4.8 -32" fill="#ffd87a" />
+      <path d="M 5.2 -32.4 Q 5.6 -33.2 6 -32.4" fill="#ffffff" opacity="0.7" />
     </g>
   ),
 
@@ -285,17 +323,17 @@ const LANDMARK: Record<string, ReactElement> = {
       <rect x="3" y="-10" width="4" height="10" fill={STONE_DARK} opacity="0.3" />
       {/* arched door */}
       <path d="M -1.4 0 L -1.4 -3 Q -1.4 -4.5 0 -4.5 Q 1.4 -4.5 1.4 -3 L 1.4 0 Z" fill={DEEP} opacity="0.6" />
-      {/* 4 ornate spires (asymmetric heights) */}
+      {/* 4 ornate spires with Gaudí-style mosaic finials (asymmetric) */}
       {[
-        { x: -6, h: 18 },
-        { x: -2, h: 24 },
-        { x: 2, h: 26 },
-        { x: 6, h: 20 },
+        { x: -6, h: 18, c: TILE_GREEN },
+        { x: -2, h: 24, c: TILE_RED },
+        { x: 2, h: 26, c: TILE_YELLOW },
+        { x: 6, h: 20, c: TILE_BLUE },
       ].map((s, i) => (
         <g key={i}>
           <path
             d={`M ${s.x - 1.4} -10 L ${s.x - 0.7} ${-s.h} L ${s.x} ${-s.h - 2} L ${s.x + 0.7} ${-s.h} L ${s.x + 1.4} -10 Z`}
-            fill={SAND}
+            fill="#ead7b7"
             stroke={STONE_DARK}
             strokeWidth="0.3"
             strokeLinejoin="round"
@@ -303,18 +341,19 @@ const LANDMARK: Record<string, ReactElement> = {
           <path
             d={`M ${s.x} ${-s.h - 2} L ${s.x} -10 L ${s.x + 1.4} -10 Z`}
             fill={STONE_DARK}
-            opacity="0.35"
+            opacity="0.32"
           />
-          {/* texture bands on spire */}
           <line x1={s.x - 1.2} y1={-s.h + 5} x2={s.x + 1.2} y2={-s.h + 5} stroke={STONE_DARK} strokeWidth="0.25" />
           <line x1={s.x - 1.2} y1={-s.h + 10} x2={s.x + 1.2} y2={-s.h + 10} stroke={STONE_DARK} strokeWidth="0.25" />
+          {/* colored mosaic tip */}
+          <circle cx={s.x} cy={-s.h - 0.8} r="0.9" fill={s.c} stroke={STONE_DARK} strokeWidth="0.2" />
           <circle cx={s.x} cy={-s.h - 2.6} r="0.5" fill={GOLD} />
         </g>
       ))}
       {/* small central crossing tower (highest) */}
       <path
         d="M -1 -10 L -0.5 -28 L 0 -30 L 0.5 -28 L 1 -10 Z"
-        fill={SAND}
+        fill="#ead7b7"
         stroke={STONE_DARK}
         strokeWidth="0.3"
         strokeLinejoin="round"
@@ -353,29 +392,28 @@ const LANDMARK: Record<string, ReactElement> = {
   ),
 
   // ---------------------------------------------------------------------------
-  // Hagia Sophia — Türkiye (also "Turkey")
+  // Hagia Sophia — Türkiye (warm rose-cream stone, signature reddish wash)
   Turkey: (
     <g>
       <ellipse cx="0" cy="0.5" rx="14" ry="1.1" fill={DEEP} opacity="0.25" />
-      {/* mosque body */}
-      <rect x="-9" y="-12" width="18" height="12" fill={SAND_DARK} stroke={STONE_DARK} strokeWidth="0.35" />
+      {/* mosque body — warm rose tint */}
+      <rect x="-9" y="-12" width="18" height="12" fill="#d49680" stroke={STONE_DARK} strokeWidth="0.35" />
       {/* central great dome */}
-      <path d="M -7 -12 A 7 6.5 0 0 1 7 -12 Z" fill={SAND} stroke={STONE_DARK} strokeWidth="0.35" />
-      <path d="M 0 -18.5 A 6.5 6.5 0 0 1 7 -12 Z" fill={STONE_DARK} opacity="0.3" />
+      <path d="M -7 -12 A 7 6.5 0 0 1 7 -12 Z" fill="#e8b298" stroke={STONE_DARK} strokeWidth="0.35" />
+      <path d="M 0 -18.5 A 6.5 6.5 0 0 1 7 -12 Z" fill={STONE_DARK} opacity="0.32" />
       {/* small semi-domes */}
-      <path d="M -9 -10 A 3 2.6 0 0 1 -3 -10 Z" fill={SAND} stroke={STONE_DARK} strokeWidth="0.3" />
-      <path d="M 3 -10 A 3 2.6 0 0 1 9 -10 Z" fill={SAND} stroke={STONE_DARK} strokeWidth="0.3" />
+      <path d="M -9 -10 A 3 2.6 0 0 1 -3 -10 Z" fill="#dca28a" stroke={STONE_DARK} strokeWidth="0.3" />
+      <path d="M 3 -10 A 3 2.6 0 0 1 9 -10 Z" fill="#dca28a" stroke={STONE_DARK} strokeWidth="0.3" />
       {/* dome highlight stripe */}
-      <path d="M -5 -16 Q 0 -19 5 -16" stroke={STONE_LIGHT} strokeWidth="0.4" fill="none" opacity="0.6" />
-      {/* tiny finial on the great dome */}
+      <path d="M -5 -16 Q 0 -19 5 -16" stroke="#fff" strokeWidth="0.4" fill="none" opacity="0.55" />
       <line x1="0" y1="-18.5" x2="0" y2="-20.4" stroke={STONE_DARK} strokeWidth="0.45" />
-      <circle cx="0" cy="-20.8" r="0.4" fill={GOLD} />
-      {/* 4 minarets */}
+      <circle cx="0" cy="-20.8" r="0.5" fill={GOLD} />
+      {/* 4 minarets — pale stone, faint shadow */}
       {[-12, -10.5, 10.5, 12].map((x, i) => (
         <g key={i}>
-          <rect x={x - 0.35} y="-24" width="0.7" height="24" fill={SAND} stroke={STONE_DARK} strokeWidth="0.25" />
-          <rect x={x - 0.6} y="-19" width="1.2" height="0.6" fill={SAND_DARK} />
-          <path d={`M ${x - 0.6} -24 L ${x} -27 L ${x + 0.6} -24 Z`} fill={SAND_DARK} stroke={STONE_DARK} strokeWidth="0.2" />
+          <rect x={x - 0.35} y="-24" width="0.7" height="24" fill="#e8d8c4" stroke={STONE_DARK} strokeWidth="0.25" />
+          <rect x={x - 0.6} y="-19" width="1.2" height="0.6" fill={STONE_LIGHT} />
+          <path d={`M ${x - 0.6} -24 L ${x} -27 L ${x + 0.6} -24 Z`} fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.2" />
           <circle cx={x} cy="-21" r="0.35" fill={DEEP} opacity="0.5" />
         </g>
       ))}
@@ -747,26 +785,29 @@ const LANDMARK: Record<string, ReactElement> = {
   ),
 
   // ---------------------------------------------------------------------------
-  // CN Tower — Canada
+  // CN Tower — Canada (cool slate concrete + sky-blue glass)
   Canada: (
     <g>
       <ellipse cx="0" cy="0.5" rx="5" ry="1" fill={DEEP} opacity="0.25" />
-      {/* main vertical shaft */}
+      {/* main vertical shaft — slate concrete */}
       <path
         d="M -0.7 0 L -0.7 -20 L -1 -22 L -1 -26 L 1 -26 L 1 -22 L 0.7 -20 L 0.7 0 Z"
-        fill={STONE}
-        stroke={STONE_DARK}
+        fill={SLATE}
+        stroke="#2a3744"
         strokeWidth="0.3"
       />
+      <path d="M 0 0 L 0 -20 L 0.3 -22 L 0.3 -26 L 1 -26 L 1 -22 L 0.7 -20 L 0.7 0 Z" fill="#2a3744" opacity="0.5" />
       {/* observation pod */}
-      <ellipse cx="0" cy="-20" rx="3" ry="1.4" fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.3" />
-      <rect x="-3" y="-20" width="6" height="0.8" fill={STONE} stroke={STONE_DARK} strokeWidth="0.25" />
-      <ellipse cx="0" cy="-21.4" rx="2.4" ry="1" fill={CREAM} opacity="0.7" />
+      <ellipse cx="0" cy="-20" rx="3" ry="1.4" fill={SLATE_LIGHT} stroke="#2a3744" strokeWidth="0.3" />
+      <rect x="-3" y="-20" width="6" height="0.8" fill={SLATE} stroke="#2a3744" strokeWidth="0.25" />
+      <ellipse cx="0" cy="-21.4" rx="2.4" ry="1" fill={GLASS_BLUE} opacity="0.85" />
+      <ellipse cx="-0.5" cy="-21.6" rx="0.8" ry="0.35" fill="#fff" opacity="0.7" />
       {/* upper sky pod */}
-      <rect x="-0.9" y="-25" width="1.8" height="1.6" fill={STONE_DARK} />
+      <rect x="-0.9" y="-25" width="1.8" height="1.6" fill={SLATE_LIGHT} stroke="#2a3744" strokeWidth="0.25" />
+      <rect x="-0.9" y="-25" width="1.8" height="0.6" fill={GLASS_BLUE} />
       {/* antenna spike */}
-      <line x1="0" y1="-26" x2="0" y2="-32" stroke={STONE_DARK} strokeWidth="0.45" />
-      <circle cx="0" cy="-32.2" r="0.4" fill={GOLD} />
+      <line x1="0" y1="-26" x2="0" y2="-32" stroke="#2a3744" strokeWidth="0.45" />
+      <circle cx="0" cy="-32.2" r="0.4" fill={GLASS_BLUE} />
     </g>
   ),
 
@@ -794,10 +835,10 @@ const LANDMARK: Record<string, ReactElement> = {
       {/* tall minaret */}
       <rect x="-1.3" y="-28" width="2.6" height="18" fill={SAND} stroke={STONE_DARK} strokeWidth="0.3" />
       <rect x="0.4" y="-28" width="0.9" height="18" fill={STONE_DARK} opacity="0.3" />
-      {/* decorative tile bands */}
-      <rect x="-1.3" y="-26" width="2.6" height="0.7" fill={ROOF_DARK} />
-      <rect x="-1.3" y="-20" width="2.6" height="0.7" fill={ROOF_DARK} />
-      <rect x="-1.3" y="-14" width="2.6" height="0.7" fill={ROOF_DARK} />
+      {/* decorative tile bands — turquoise zellige */}
+      <rect x="-1.3" y="-26" width="2.6" height="0.7" fill={TURQUOISE} />
+      <rect x="-1.3" y="-20" width="2.6" height="0.7" fill={TURQUOISE} />
+      <rect x="-1.3" y="-14" width="2.6" height="0.7" fill={TURQUOISE} />
       {/* minaret window */}
       <rect x="-0.6" y="-22.5" width="1.2" height="1.6" fill={DEEP} opacity="0.55" />
       {/* minaret top cap */}
@@ -907,176 +948,207 @@ const LANDMARK: Record<string, ReactElement> = {
   // (Canada uses CN Tower above)
 
   // ---------------------------------------------------------------------------
-  // Burj Khalifa — United Arab Emirates
+  // Burj Khalifa — UAE (silver-blue glass mirror finish)
   "United Arab Emirates": (
     <g>
       <ellipse cx="0" cy="0.5" rx="5" ry="1" fill={DEEP} opacity="0.25" />
       <path d="M -3.5 0 L -2.5 -8 L -1.5 -16 L -0.8 -24 L -0.3 -30 L 0.3 -30 L 0.8 -24 L 1.5 -16 L 2.5 -8 L 3.5 0 Z"
-        fill={STONE_LIGHT}
-        stroke={STONE_DARK}
+        fill={GLASS_SILVER}
+        stroke="#2c3a4a"
         strokeWidth="0.3"
         strokeLinejoin="round"
       />
-      <path d="M 0 -30 L 0.3 -30 L 0.8 -24 L 1.5 -16 L 2.5 -8 L 3.5 0 L 1.5 0 L 1 -22 Z" fill={STONE_DARK} opacity="0.35" />
-      <line x1="0" y1="-30" x2="0" y2="-34" stroke={STONE_DARK} strokeWidth="0.5" />
-      <circle cx="0" cy="-34.2" r="0.4" fill={GOLD} />
-      {/* vertical highlight lines */}
-      <line x1="-0.8" y1="-22" x2="-0.8" y2="-2" stroke={STONE_DARK} strokeWidth="0.2" opacity="0.6" />
-      <line x1="0.8" y1="-22" x2="0.8" y2="-2" stroke={STONE_DARK} strokeWidth="0.2" opacity="0.6" />
+      {/* sky reflection on the lit face */}
+      <path d="M -3.5 0 L -2.5 -8 L -1.5 -16 L -0.8 -24 L -0.3 -30 L 0 -30 L 0 0 Z" fill={GLASS_BLUE} opacity="0.55" />
+      {/* deep shadow side */}
+      <path d="M 0 -30 L 0.3 -30 L 0.8 -24 L 1.5 -16 L 2.5 -8 L 3.5 0 L 1.5 0 L 1 -22 Z" fill="#2c3a4a" opacity="0.5" />
+      {/* mast */}
+      <line x1="0" y1="-30" x2="0" y2="-34" stroke="#2c3a4a" strokeWidth="0.5" />
+      <circle cx="0" cy="-34.2" r="0.4" fill={GLASS_BLUE} />
+      {/* vertical mullion accents */}
+      <line x1="-0.8" y1="-22" x2="-0.8" y2="-2" stroke="#2c3a4a" strokeWidth="0.2" opacity="0.6" />
+      <line x1="0.8" y1="-22" x2="0.8" y2="-2" stroke="#2c3a4a" strokeWidth="0.2" opacity="0.6" />
+      {/* sky highlight stripe */}
+      <line x1="-1.5" y1="-20" x2="-1.5" y2="-5" stroke="#ffffff" strokeWidth="0.18" opacity="0.4" />
     </g>
   ),
 
   // ---------------------------------------------------------------------------
-  // Mount Fuji — Japan
+  // Mount Fuji — Japan (cool blue-slate volcano + bright snow + cherry blossoms)
   Japan: (
     <g>
       <ellipse cx="0" cy="0.5" rx="13" ry="1" fill={DEEP} opacity="0.25" />
       <path
         d="M -13 0 L -3 -18 L 0 -22 L 3 -18 L 13 0 Z"
-        fill={STONE}
-        stroke={STONE_DARK}
+        fill={SLATE}
+        stroke="#1f2c38"
         strokeWidth="0.35"
         strokeLinejoin="round"
       />
-      <path d="M 0 -22 L 3 -18 L 13 0 L 5 0 L 1 -16 Z" fill={STONE_DARK} opacity="0.35" />
-      {/* iconic snow cap */}
+      {/* lit face */}
+      <path d="M -13 0 L -3 -18 L 0 -22 L -2 0 Z" fill={SLATE_LIGHT} opacity="0.4" />
+      <path d="M 0 -22 L 3 -18 L 13 0 L 5 0 L 1 -16 Z" fill="#1f2c38" opacity="0.45" />
+      {/* iconic snow cap — bright and crisp */}
       <path
         d="M -3 -18 L -2 -19 L -1 -17 L 0 -22 L 1 -17 L 2 -19 L 3 -18 Q 0 -16 -3 -18 Z"
         fill={SNOW}
-        stroke={STONE_DARK}
+        stroke="#1f2c38"
         strokeWidth="0.25"
       />
       {/* snow streaks down face */}
-      <path d="M -1.2 -17 L -1.4 -10" stroke={SNOW} strokeWidth="0.45" opacity="0.7" />
-      <path d="M 1.2 -17 L 1.5 -8" stroke={SNOW} strokeWidth="0.45" opacity="0.7" />
-      {/* cherry blossom hint */}
-      <circle cx="-9" cy="-3" r="0.6" fill="#f5b3c8" />
-      <circle cx="-7.8" cy="-2" r="0.5" fill="#f5b3c8" />
-      <circle cx="-6.6" cy="-3.4" r="0.5" fill="#f5b3c8" />
+      <path d="M -1.2 -17 L -1.4 -10" stroke={SNOW} strokeWidth="0.45" opacity="0.85" />
+      <path d="M 1.2 -17 L 1.5 -8" stroke={SNOW} strokeWidth="0.45" opacity="0.85" />
+      <path d="M 0 -22 L -0.2 -14" stroke={SNOW} strokeWidth="0.3" opacity="0.6" />
+      {/* cherry blossom branch */}
+      <path d="M -10 0 Q -8 -2 -6 -3" stroke="#5a3f1f" strokeWidth="0.3" fill="none" />
+      <circle cx="-9" cy="-3" r="0.7" fill={BLOSSOM} />
+      <circle cx="-7.8" cy="-2.2" r="0.6" fill={BLOSSOM} />
+      <circle cx="-6.6" cy="-3.4" r="0.55" fill={BLOSSOM} />
+      <circle cx="-8.4" cy="-3.6" r="0.4" fill="#fff" opacity="0.7" />
     </g>
   ),
 
   // ---------------------------------------------------------------------------
-  // Sydney Opera House — Australia
+  // Sydney Opera House — Australia (white sails over harbor turquoise)
   Australia: (
     <g>
       <ellipse cx="0" cy="0.5" rx="13" ry="1" fill={DEEP} opacity="0.25" />
-      {/* harbor water */}
-      <rect x="-13" y="-1" width="26" height="1" fill={SEA} opacity="0.7" />
+      {/* harbor water — distinct turquoise */}
+      <rect x="-13" y="-1" width="26" height="1" fill={TURQUOISE} opacity="0.85" />
+      <line x1="-10" y1="-0.5" x2="-6" y2="-0.5" stroke="#fff" strokeWidth="0.2" opacity="0.6" />
+      <line x1="4" y1="-0.5" x2="8" y2="-0.5" stroke="#fff" strokeWidth="0.2" opacity="0.6" />
       {/* base platform */}
-      <rect x="-12" y="-3" width="24" height="2" fill={SAND_DARK} stroke={STONE_DARK} strokeWidth="0.3" />
-      {/* the famous sail shells (overlapping) */}
-      <path d="M -10 -3 Q -8 -16 -4 -3 Z" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.3" />
-      <path d="M -7 -3 Q -5 -13 -1 -3 Z" fill={SNOW} stroke={STONE_DARK} strokeWidth="0.3" />
-      <path d="M -3 -3 Q -1 -17 3 -3 Z" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.3" />
-      <path d="M 1 -3 Q 3 -14 7 -3 Z" fill={SNOW} stroke={STONE_DARK} strokeWidth="0.3" />
-      <path d="M 4 -3 Q 6 -10 10 -3 Z" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.3" />
+      <rect x="-12" y="-3" width="24" height="2" fill="#7d654a" stroke={STONE_DARK} strokeWidth="0.3" />
+      {/* the famous sail shells — pure white with subtle blue shadow */}
+      <path d="M -10 -3 Q -8 -16 -4 -3 Z" fill={SNOW} stroke="#2c3a4a" strokeWidth="0.3" />
+      <path d="M -7 -3 Q -5 -13 -1 -3 Z" fill={IVORY} stroke="#2c3a4a" strokeWidth="0.3" />
+      <path d="M -3 -3 Q -1 -17 3 -3 Z" fill={SNOW} stroke="#2c3a4a" strokeWidth="0.3" />
+      <path d="M 1 -3 Q 3 -14 7 -3 Z" fill={IVORY} stroke="#2c3a4a" strokeWidth="0.3" />
+      <path d="M 4 -3 Q 6 -10 10 -3 Z" fill={SNOW} stroke="#2c3a4a" strokeWidth="0.3" />
+      {/* shadow side of each shell */}
+      <path d="M -8 -16 Q -6 -10 -4 -3 L -8 -3 Z" fill={GLASS_BLUE} opacity="0.25" />
+      <path d="M -1 -17 Q 1 -10 3 -3 L -1 -3 Z" fill={GLASS_BLUE} opacity="0.25" />
+      <path d="M 3 -14 Q 5 -8 7 -3 L 3 -3 Z" fill={GLASS_BLUE} opacity="0.25" />
       {/* shell shading lines */}
-      <path d="M -8 -16 Q -7 -10 -4 -3" stroke={STONE_DARK} strokeWidth="0.25" fill="none" opacity="0.7" />
-      <path d="M -1 -17 Q 0 -10 3 -3" stroke={STONE_DARK} strokeWidth="0.25" fill="none" opacity="0.7" />
-      <path d="M 3 -14 Q 4 -8 7 -3" stroke={STONE_DARK} strokeWidth="0.25" fill="none" opacity="0.7" />
-      {/* harbor bridge hint */}
+      <path d="M -8 -16 Q -7 -10 -4 -3" stroke="#2c3a4a" strokeWidth="0.25" fill="none" opacity="0.7" />
+      <path d="M -1 -17 Q 0 -10 3 -3" stroke="#2c3a4a" strokeWidth="0.25" fill="none" opacity="0.7" />
+      <path d="M 3 -14 Q 4 -8 7 -3" stroke="#2c3a4a" strokeWidth="0.25" fill="none" opacity="0.7" />
+      {/* harbor bridge arch */}
       <path
-        d="M -13 -3 Q -7 -7 0 -7 Q 7 -7 13 -3"
-        stroke={STONE_DARK}
-        strokeWidth="0.6"
+        d="M -13 -3 Q -7 -8 0 -8 Q 7 -8 13 -3"
+        stroke={SLATE}
+        strokeWidth="0.8"
         fill="none"
-        opacity="0.5"
+        opacity="0.7"
       />
     </g>
   ),
 
   // ---------------------------------------------------------------------------
-  // Taj Mahal — India
+  // Taj Mahal — India (ivory marble + rose-pink accents + turquoise pool)
   India: (
     <g>
       <ellipse cx="0" cy="0.5" rx="13" ry="1" fill={DEEP} opacity="0.25" />
-      {/* reflecting pool */}
-      <rect x="-9" y="-1" width="18" height="1" fill={SEA} opacity="0.5" />
-      {/* base platform */}
-      <rect x="-10" y="-4" width="20" height="3" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.3" />
+      {/* reflecting pool — turquoise */}
+      <rect x="-9" y="-1" width="18" height="1" fill={TURQUOISE} opacity="0.7" />
+      {/* base platform with rose trim */}
+      <rect x="-10" y="-4" width="20" height="3" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.3" />
+      <rect x="-10" y="-4" width="20" height="0.6" fill={ROSE} opacity="0.65" />
       {/* 4 minarets */}
       {[-9, -7, 7, 9].map((x, i) => (
         <g key={i}>
-          <rect x={x - 0.4} y="-18" width="0.8" height="14" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.25" />
-          <rect x={x - 0.6} y="-14" width="1.2" height="0.6" fill={SAND_DARK} />
-          <rect x={x - 0.6} y="-10" width="1.2" height="0.6" fill={SAND_DARK} />
-          <path d={`M ${x - 0.6} -18 L ${x} -20 L ${x + 0.6} -18 Z`} fill={CREAM} stroke={STONE_DARK} strokeWidth="0.25" />
+          <rect x={x - 0.4} y="-18" width="0.8" height="14" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.25" />
+          <rect x={x - 0.6} y="-14" width="1.2" height="0.6" fill={ROSE} opacity="0.7" />
+          <rect x={x - 0.6} y="-10" width="1.2" height="0.6" fill={ROSE} opacity="0.7" />
+          <path d={`M ${x - 0.6} -18 L ${x} -20 L ${x + 0.6} -18 Z`} fill={IVORY} stroke={STONE_DARK} strokeWidth="0.25" />
           <line x1={x} y1="-20" x2={x} y2="-21.6" stroke={STONE_DARK} strokeWidth="0.3" />
           <circle cx={x} cy="-21.8" r="0.3" fill={GOLD} />
         </g>
       ))}
       {/* main mausoleum body */}
-      <rect x="-5" y="-12" width="10" height="8" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.3" />
-      {/* iwan (central arched recess) */}
-      <path d="M -1.8 -4 L -1.8 -10 Q -1.8 -11.5 0 -11.5 Q 1.8 -11.5 1.8 -10 L 1.8 -4 Z" fill={DEEP} opacity="0.5" />
+      <rect x="-5" y="-12" width="10" height="8" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.3" />
+      {/* iwan (central arched recess) with rose-tinted shadow */}
+      <path d="M -1.8 -4 L -1.8 -10 Q -1.8 -11.5 0 -11.5 Q 1.8 -11.5 1.8 -10 L 1.8 -4 Z" fill={ROSE} opacity="0.4" />
+      <path d="M -1.5 -4 L -1.5 -9.5 Q -1.5 -10.8 0 -10.8 Q 1.5 -10.8 1.5 -9.5 L 1.5 -4 Z" fill={DEEP} opacity="0.45" />
       {/* corner chattris */}
-      <rect x="-4.6" y="-13" width="1.2" height="1" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.2" />
-      <path d="M -4.7 -13 Q -4 -14.6 -3.3 -13 Z" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.2" />
-      <rect x="3.4" y="-13" width="1.2" height="1" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.2" />
-      <path d="M 3.3 -13 Q 4 -14.6 4.7 -13 Z" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.2" />
-      {/* great onion dome */}
+      <rect x="-4.6" y="-13" width="1.2" height="1" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.2" />
+      <path d="M -4.7 -13 Q -4 -14.6 -3.3 -13 Z" fill={ROSE} stroke={STONE_DARK} strokeWidth="0.2" opacity="0.85" />
+      <rect x="3.4" y="-13" width="1.2" height="1" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.2" />
+      <path d="M 3.3 -13 Q 4 -14.6 4.7 -13 Z" fill={ROSE} stroke={STONE_DARK} strokeWidth="0.2" opacity="0.85" />
+      {/* great onion dome — ivory */}
       <path
         d="M -3.4 -12 C -3.4 -16 -2 -19 0 -19 C 2 -19 3.4 -16 3.4 -12 Q 0 -10 -3.4 -12 Z"
-        fill={SNOW}
+        fill={IVORY}
         stroke={STONE_DARK}
         strokeWidth="0.3"
       />
-      {/* dome shadow */}
-      <path d="M 0 -19 C 2 -19 3.4 -16 3.4 -12 Q 1.5 -10 0 -10 Z" fill={STONE_DARK} opacity="0.18" />
-      <rect x="-0.6" y="-20.4" width="1.2" height="1.4" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.2" />
-      <path d="M -0.6 -20.4 L 0 -21.8 L 0.6 -20.4 Z" fill={SAND_DARK} />
+      {/* dome rose tint */}
+      <path d="M 0 -19 C 2 -19 3.4 -16 3.4 -12 Q 1.5 -10 0 -10 Z" fill={ROSE} opacity="0.3" />
+      <rect x="-0.6" y="-20.4" width="1.2" height="1.4" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.2" />
+      <path d="M -0.6 -20.4 L 0 -21.8 L 0.6 -20.4 Z" fill={ROSE} />
       <line x1="0" y1="-21.8" x2="0" y2="-23.4" stroke={STONE_DARK} strokeWidth="0.3" />
       <circle cx="0" cy="-23.6" r="0.4" fill={GOLD} />
     </g>
   ),
 
   // ---------------------------------------------------------------------------
-  // Christ the Redeemer — Brazil
+  // Christ the Redeemer — Brazil (verdant rainforest mountain + ivory statue)
   Brazil: (
     <g>
       <ellipse cx="0" cy="0.5" rx="13" ry="1" fill={DEEP} opacity="0.25" />
-      {/* sugarloaf mountain */}
-      <path d="M -13 0 L -9 -10 L -6 -3 L -2 -12 L 1 -8 L 5 -16 L 8 -10 L 13 0 Z" fill={GREEN_DARK} stroke={STONE_DARK} strokeWidth="0.3" />
+      {/* sugarloaf rainforest mountain */}
+      <path d="M -13 0 L -9 -10 L -6 -3 L -2 -12 L 1 -8 L 5 -16 L 8 -10 L 13 0 Z" fill={VERDANT} stroke="#1f3a1d" strokeWidth="0.3" />
+      {/* lit face */}
+      <path d="M 1 -8 L 5 -16 L 8 -10 L 13 0 L 8 0 L 4 -10 Z" fill="#88b478" opacity="0.5" />
+      {/* tree texture dots */}
+      <circle cx="-8" cy="-7" r="0.4" fill="#1f3a1d" opacity="0.7" />
+      <circle cx="-5" cy="-2" r="0.4" fill="#1f3a1d" opacity="0.7" />
+      <circle cx="2" cy="-5" r="0.4" fill="#1f3a1d" opacity="0.7" />
+      <circle cx="9" cy="-4" r="0.4" fill="#1f3a1d" opacity="0.7" />
       {/* statue base/pedestal on peak */}
-      <rect x="-1.4" y="-19" width="2.8" height="3" fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.25" />
-      {/* statue body */}
-      <rect x="-0.7" y="-23" width="1.4" height="4" fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.25" />
+      <rect x="-1.4" y="-19" width="2.8" height="3" fill="#a89d80" stroke={STONE_DARK} strokeWidth="0.25" />
+      {/* statue body — ivory cream */}
+      <rect x="-0.7" y="-23" width="1.4" height="4" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.25" />
       {/* outstretched arms */}
-      <rect x="-4" y="-23.4" width="8" height="0.9" fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.25" />
+      <rect x="-4" y="-23.4" width="8" height="0.9" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.25" />
       {/* head */}
-      <circle cx="0" cy="-24" r="0.8" fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.25" />
+      <circle cx="0" cy="-24" r="0.8" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.25" />
       {/* arm drape lines */}
       <line x1="-4" y1="-22.5" x2="-4" y2="-21.4" stroke={STONE_DARK} strokeWidth="0.25" />
       <line x1="4" y1="-22.5" x2="4" y2="-21.4" stroke={STONE_DARK} strokeWidth="0.25" />
+      {/* shadow on statue body */}
+      <rect x="0" y="-23" width="0.7" height="4" fill={STONE_DARK} opacity="0.2" />
     </g>
   ),
 
   // ---------------------------------------------------------------------------
-  // Petra — Jordan
+  // Petra — Jordan (rose-red sandstone cliff and façade)
   Jordan: (
     <g>
       <ellipse cx="0" cy="0.5" rx="11" ry="1" fill={DEEP} opacity="0.25" />
-      {/* cliff face background */}
-      <rect x="-11" y="-22" width="22" height="22" fill={SAND_DARK} stroke={STONE_DARK} strokeWidth="0.3" />
-      <path d="M -11 -22 L 11 -22 L 11 -20 L -11 -20 Z" fill={STONE_DARK} opacity="0.5" />
+      {/* cliff face — rose-red sandstone */}
+      <rect x="-11" y="-22" width="22" height="22" fill={PETRA_ROSE_DARK} stroke={DEEP} strokeWidth="0.3" />
+      <path d="M -11 -22 L 11 -22 L 11 -20 L -11 -20 Z" fill="#5d2a13" opacity="0.55" />
+      {/* layered rock striations */}
+      <line x1="-11" y1="-14" x2="11" y2="-13" stroke="#5d2a13" strokeWidth="0.3" opacity="0.5" />
+      <line x1="-11" y1="-7" x2="11" y2="-6" stroke="#5d2a13" strokeWidth="0.3" opacity="0.5" />
       {/* carved façade of Al-Khazneh */}
-      <rect x="-5" y="-18" width="10" height="18" fill={SAND} stroke={STONE_DARK} strokeWidth="0.3" />
-      {/* lower columns */}
+      <rect x="-5" y="-18" width="10" height="18" fill={PETRA_ROSE} stroke={DEEP} strokeWidth="0.3" />
+      {/* lower columns — slightly paler sandstone */}
       {[-3.4, -1.5, 1.5, 3.4].map((x, i) => (
-        <rect key={i} x={x - 0.4} y="-9" width="0.8" height="9" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.2" />
+        <rect key={i} x={x - 0.4} y="-9" width="0.8" height="9" fill="#dc9078" stroke={DEEP} strokeWidth="0.2" />
       ))}
       {/* lower entablature */}
-      <rect x="-5" y="-10" width="10" height="1" fill={STONE} />
+      <rect x="-5" y="-10" width="10" height="1" fill={PETRA_ROSE_DARK} />
       {/* pediment */}
-      <path d="M -5 -10 L 0 -14 L 5 -10 Z" fill={SAND_DARK} stroke={STONE_DARK} strokeWidth="0.3" />
+      <path d="M -5 -10 L 0 -14 L 5 -10 Z" fill={PETRA_ROSE_DARK} stroke={DEEP} strokeWidth="0.3" />
       {/* upper structure (tholos) */}
-      <rect x="-3.5" y="-18" width="7" height="4" fill={SAND} stroke={STONE_DARK} strokeWidth="0.3" />
-      <circle cx="0" cy="-16" r="2" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.3" />
-      <rect x="-1" y="-15.6" width="2" height="1.6" fill={DEEP} opacity="0.5" />
-      <path d="M -2 -18 L 0 -20 L 2 -18 Z" fill={SAND_DARK} stroke={STONE_DARK} strokeWidth="0.25" />
-      {/* arched doorway */}
-      <path d="M -1.4 0 L -1.4 -4 Q -1.4 -6 0 -6 Q 1.4 -6 1.4 -4 L 1.4 0 Z" fill={DEEP} opacity="0.65" />
+      <rect x="-3.5" y="-18" width="7" height="4" fill={PETRA_ROSE} stroke={DEEP} strokeWidth="0.3" />
+      <circle cx="0" cy="-16" r="2" fill="#dc9078" stroke={DEEP} strokeWidth="0.3" />
+      <rect x="-1" y="-15.6" width="2" height="1.6" fill={DEEP} opacity="0.55" />
+      <path d="M -2 -18 L 0 -20 L 2 -18 Z" fill={PETRA_ROSE_DARK} stroke={DEEP} strokeWidth="0.25" />
+      {/* arched doorway — deep shadow */}
+      <path d="M -1.4 0 L -1.4 -4 Q -1.4 -6 0 -6 Q 1.4 -6 1.4 -4 L 1.4 0 Z" fill={DEEP} opacity="0.75" />
     </g>
   ),
 
@@ -1169,11 +1241,11 @@ const LANDMARK: Record<string, ReactElement> = {
   // countries to round out the figurine catalog.
   // ---------------------------------------------------------------------------
 
-  // Easter Island Moai — Chile
+  // Easter Island Moai — Chile (volcanic grey-brown)
   Chile: (
     <g>
       <ellipse cx="0" cy="0.5" rx="8" ry="1" fill={DEEP} opacity="0.25" />
-      {/* three moai of varying sizes */}
+      {/* three moai of varying sizes — porous volcanic stone */}
       {[
         { x: -6, h: 18, w: 4 },
         { x: 0, h: 24, w: 5 },
@@ -1182,33 +1254,35 @@ const LANDMARK: Record<string, ReactElement> = {
         <g key={i}>
           <path
             d={`M ${m.x - m.w / 2} 0 L ${m.x - m.w / 2 + 0.4} ${-m.h + 4} L ${m.x - m.w / 2} ${-m.h} L ${m.x + m.w / 2} ${-m.h} L ${m.x + m.w / 2 - 0.4} ${-m.h + 4} L ${m.x + m.w / 2} 0 Z`}
-            fill={STONE}
-            stroke={STONE_DARK}
+            fill={VOLCANIC}
+            stroke={VOLCANIC_DARK}
             strokeWidth="0.3"
             strokeLinejoin="round"
           />
           <path
             d={`M ${m.x + m.w / 2 - 0.5} 0 L ${m.x + m.w / 2 - 0.1} ${-m.h + 4} L ${m.x + m.w / 2} ${-m.h} L ${m.x + m.w / 2} 0 Z`}
-            fill={STONE_DARK}
-            opacity="0.45"
+            fill={VOLCANIC_DARK}
+            opacity="0.55"
           />
           {/* heavy brow and nose hint */}
-          <rect x={m.x - m.w / 2 + 0.6} y={-m.h + 1.4} width={m.w - 1.2} height={0.5} fill={STONE_DARK} />
-          <line x1={m.x} y1={-m.h + 2.4} x2={m.x} y2={-m.h + m.h / 3} stroke={STONE_DARK} strokeWidth="0.3" />
-          <line x1={m.x - 0.5} y1={-m.h + m.h / 3} x2={m.x + 0.5} y2={-m.h + m.h / 3} stroke={STONE_DARK} strokeWidth="0.3" />
+          <rect x={m.x - m.w / 2 + 0.6} y={-m.h + 1.4} width={m.w - 1.2} height={0.5} fill={VOLCANIC_DARK} />
+          <line x1={m.x} y1={-m.h + 2.4} x2={m.x} y2={-m.h + m.h / 3} stroke={VOLCANIC_DARK} strokeWidth="0.3" />
+          <line x1={m.x - 0.5} y1={-m.h + m.h / 3} x2={m.x + 0.5} y2={-m.h + m.h / 3} stroke={VOLCANIC_DARK} strokeWidth="0.3" />
+          {/* faint moss highlight on top */}
+          <line x1={m.x - m.w / 2 + 0.4} y1={-m.h + 0.5} x2={m.x + m.w / 2 - 0.4} y2={-m.h + 0.5} stroke="#7a8252" strokeWidth="0.3" opacity="0.7" />
         </g>
       ))}
     </g>
   ),
 
-  // Petronas Twin Towers — Malaysia
+  // Petronas Twin Towers — Malaysia (cool silver-teal glass)
   Malaysia: (
     <g>
       <ellipse cx="0" cy="0.5" rx="9" ry="1" fill={DEEP} opacity="0.25" />
       {/* connecting skybridge */}
-      <rect x="-4" y="-14" width="8" height="1" fill={STONE} stroke={STONE_DARK} strokeWidth="0.25" />
-      <line x1="-3" y1="-14" x2="-3" y2="-13" stroke={STONE_DARK} strokeWidth="0.25" />
-      <line x1="3" y1="-14" x2="3" y2="-13" stroke={STONE_DARK} strokeWidth="0.25" />
+      <rect x="-4" y="-14" width="8" height="1" fill={GLASS_SILVER} stroke="#2c3a4a" strokeWidth="0.25" />
+      <line x1="-3" y1="-14" x2="-3" y2="-13" stroke="#2c3a4a" strokeWidth="0.25" />
+      <line x1="3" y1="-14" x2="3" y2="-13" stroke="#2c3a4a" strokeWidth="0.25" />
       {/* two towers — segmented */}
       {[-4, 4].map((cx, i) => (
         <g key={i}>
@@ -1219,17 +1293,29 @@ const LANDMARK: Record<string, ReactElement> = {
               y={-6 - seg * 4}
               width={3.2 - seg * 0.1}
               height={4}
-              fill={STONE_LIGHT}
-              stroke={STONE_DARK}
+              fill={GLASS_SILVER}
+              stroke="#2c3a4a"
               strokeWidth="0.25"
             />
           ))}
-          <rect x={cx - 0.6} y="-28" width="1.2" height="2" fill={STONE_DARK} />
-          <line x1={cx} y1="-28" x2={cx} y2="-31.4" stroke={STONE_DARK} strokeWidth="0.45" />
-          <circle cx={cx} cy="-31.6" r="0.35" fill={GOLD} />
+          {/* sky-reflecting blue strip */}
+          {[0, 1, 2, 3, 4].map((seg) => (
+            <rect
+              key={`b-${seg}`}
+              x={cx - 1.6 + seg * 0.05}
+              y={-6 - seg * 4}
+              width={1.6 - seg * 0.05}
+              height={4}
+              fill={GLASS_BLUE}
+              opacity="0.55"
+            />
+          ))}
+          <rect x={cx - 0.6} y="-28" width="1.2" height="2" fill="#2c3a4a" />
+          <line x1={cx} y1="-28" x2={cx} y2="-31.4" stroke="#2c3a4a" strokeWidth="0.45" />
+          <circle cx={cx} cy="-31.6" r="0.35" fill={GLASS_BLUE} />
         </g>
       ))}
-      {/* tower windows hint */}
+      {/* tower mullions hint */}
       {[-4, 4].map((cx, i) => (
         <g key={i}>
           {[0, 1, 2, 3, 4].map((seg) => (
@@ -1239,7 +1325,7 @@ const LANDMARK: Record<string, ReactElement> = {
               y1={-4 - seg * 4}
               x2={cx + 1.4}
               y2={-4 - seg * 4}
-              stroke={STONE_DARK}
+              stroke="#2c3a4a"
               strokeWidth="0.2"
             />
           ))}
@@ -1248,23 +1334,27 @@ const LANDMARK: Record<string, ReactElement> = {
     </g>
   ),
 
-  // Marina Bay Sands — Singapore
+  // Marina Bay Sands — Singapore (boat-shaped sky park on three towers)
   Singapore: (
     <g>
       <ellipse cx="0" cy="0.5" rx="11" ry="1" fill={DEEP} opacity="0.25" />
       {/* sky park (the boat-shaped top deck) */}
-      <path d="M -10 -16 L 10 -16 L 9 -19 L -8 -19 Z" fill={STONE_LIGHT} stroke={STONE_DARK} strokeWidth="0.3" />
-      <path d="M -9 -19 L -8 -19 L -2 -20 L 2 -20 L 8 -19 L 9 -19 Z" fill={STONE_DARK} opacity="0.45" />
+      <path d="M -10 -16 L 10 -16 L 9 -19 L -8 -19 Z" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.3" />
+      <path d="M -9 -19 L -8 -19 L -2 -20 L 2 -20 L 8 -19 L 9 -19 Z" fill={STONE_DARK} opacity="0.4" />
+      {/* turquoise infinity pool stripe */}
+      <rect x="-7" y="-17" width="14" height="0.6" fill={TURQUOISE} opacity="0.85" />
       {/* tiny trees on top */}
-      <circle cx="-5" cy="-20.5" r="0.4" fill={GREEN_DARK} />
-      <circle cx="-1" cy="-20.5" r="0.4" fill={GREEN_DARK} />
-      <circle cx="3" cy="-20.5" r="0.4" fill={GREEN_DARK} />
-      {/* three towers */}
+      <circle cx="-5" cy="-20.5" r="0.4" fill={FOREST} />
+      <circle cx="-1" cy="-20.5" r="0.4" fill={FOREST} />
+      <circle cx="3" cy="-20.5" r="0.4" fill={FOREST} />
+      {/* three towers — pale glass with cool blue side */}
       {[-7, 0, 7].map((cx, i) => (
         <g key={i}>
-          <rect x={cx - 1.4} y="-16" width="2.8" height="16" fill={CREAM} stroke={STONE_DARK} strokeWidth="0.3" />
-          {/* curved lean */}
-          <path d={`M ${cx - 1.4} -16 L ${cx - 0.6} -16 L ${cx - 1.2} 0 L ${cx - 1.4} 0 Z`} fill={STONE_DARK} opacity="0.35" />
+          <rect x={cx - 1.4} y="-16" width="2.8" height="16" fill={IVORY} stroke={STONE_DARK} strokeWidth="0.3" />
+          {/* cool blue-glass face */}
+          <rect x={cx - 1.4} y="-16" width="1.4" height="16" fill={GLASS_BLUE} opacity="0.5" />
+          {/* lean shadow */}
+          <path d={`M ${cx + 0.6} -16 L ${cx + 1.4} -16 L ${cx + 1.2} 0 L ${cx + 0.4} 0 Z`} fill={STONE_DARK} opacity="0.32" />
           {[1, 4, 7, 10, 13].map((y) => (
             <line key={y} x1={cx - 1.2} y1={-y} x2={cx + 1.2} y2={-y} stroke={STONE_DARK} strokeWidth="0.18" />
           ))}
