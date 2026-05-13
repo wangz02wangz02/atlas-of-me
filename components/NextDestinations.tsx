@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import type { Prediction } from "@/lib/predict";
-import { predictNext } from "@/lib/predict";
+import { predictNext, MARS_PIN } from "@/lib/predict";
 
 export default function NextDestinations({
   fromSlug,
@@ -73,6 +73,28 @@ export default function NextDestinations({
           <div className="mt-3 border-t border-paper-3/60 pt-2 text-[9px] italic text-ink-faint">
             Scored by distance + same-continent bonus. AI-backed predictions
             coming later.
+          </div>
+          <div className="mt-3 rounded-sm border border-amber-deep/30 bg-amber/5 p-2">
+            <div className="flex items-baseline justify-between">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-base">♂</span>
+                <span className="font-display text-sm text-ink">
+                  {MARS_PIN.name}
+                </span>
+              </div>
+              <div className="font-mono text-[9px] tracking-tight text-ink-faint">
+                {(MARS_PIN.distanceKm / 1_000_000).toFixed(0)}M km
+              </div>
+            </div>
+            <div className="mt-1 text-[10px] uppercase tracking-[0.22em] text-amber-deep/80">
+              and one day…
+            </div>
+            <div className="mt-1 text-[11px] leading-snug text-ink-soft">
+              {MARS_PIN.pitch}
+            </div>
+            <div className="mt-1 text-[10px] italic text-ink-faint">
+              {MARS_PIN.why}
+            </div>
           </div>
         </>
       )}

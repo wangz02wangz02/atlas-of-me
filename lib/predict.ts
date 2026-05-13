@@ -32,6 +32,18 @@ export type Prediction = Candidate & {
   why: string;
 };
 
+/** Pinned "and one day…" destination shown separately from the city ranking.
+ *  Mars is roughly 225 million km from Earth at average opposition. */
+export const MARS_PIN = {
+  slug: "mars",
+  name: "Mars",
+  country: "Solar System",
+  pitch:
+    "Rust-red deserts, a sky the color of dried blood, sunsets the color of Earth's sky.",
+  distanceKm: 225_000_000,
+  why: "On a good launch window, a one-way trip takes about seven months.",
+} as const;
+
 const CANDIDATES: Candidate[] = [
   // Asia
   {

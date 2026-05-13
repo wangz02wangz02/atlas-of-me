@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useCallback } from "react";
+import { useEffect, useMemo, useRef, useCallback, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { LEGS, CITIES } from "@/lib/places";
 
@@ -40,18 +40,24 @@ export default function JourneyFilmstrip({
   }, []);
 
   const ref = useRef<HTMLDivElement>(null);
-  // Remember the last stop value we reported via onHover so we don't fire a
-  // setState on every mousemove pixel — only when the rounded stop actually
-  // changes.  Otherwise scrubbing across 115 stops would call setStop 100s
-  // of times per second and re-render the world for each, causing the
-  // "stuck/chunky" feel.
   const lastReported = useRef<number | null>(null);
+  const dwellTimer = useRef<number | null>(null);
+  // Preview stop is *local* — it updates as the cursor moves, so the
+  // capsule's caption follows the cursor, but it does NOT fire onHover
+  // to the parent (which would rotate the globe). Only after the user
+  // settles on a stop for the dwell duration, or clicks, does the
+  // parent receive the change.
+  const [previewStop, setPreviewStop] = useState<number | null>(null);
+  const DWELL_MS = 700;
 
   const total = stops.length;
   // value is 1..total; if user hasn't scrubbed (value > total) we just clamp.
   const clamped = Math.min(Math.max(1, value), total);
   const progressPct = ((clamped - 1) / Math.max(1, total - 1)) * 100;
-  const currentCity = stops[clamped - 1]?.city;
+  // What the capsule caption shows: previewStop while the user is scrubbing,
+  // else the committed value.
+  const displayStop = previewStop ?? clamped;
+  const currentCity = stops[displayStop - 1]?.city;
 
   const stopFromClientX = useCallback(
     (clientX: number): number | null => {
@@ -64,18 +70,40 @@ export default function JourneyFilmstrip({
     [total],
   );
 
+  const clearDwell = () => {
+    if (dwellTimer.current != null) {
+      window.clearTimeout(dwellTimer.current);
+      dwellTimer.current = null;
+    }
+  };
+
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const stop = stopFromClientX(e.clientX);
-    if (stop == null || stop === lastReported.current) return;
-    lastReported.current = stop;
-    onHover(stop);
+    if (stop == null) return;
+    setPreviewStop((prev) => (prev === stop ? prev : stop));
+    // Every movement resets the dwell timer. Only if the cursor sits
+    // still for DWELL_MS does the parent receive the change.
+    clearDwell();
+    dwellTimer.current = window.setTimeout(() => {
+      if (lastReported.current === stop) return;
+      lastReported.current = stop;
+      onHover(stop);
+    }, DWELL_MS);
   };
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const stop = stopFromClientX(e.clientX);
     if (stop == null) return;
+    clearDwell();
+    lastReported.current = stop;
+    setPreviewStop(stop);
     onSelect(stop);
   };
+
+  // Cleanup the dwell timer on unmount
+  useEffect(() => {
+    return () => clearDwell();
+  }, []);
 
   // Theme-aware colors. Dark mode (universe backdrop) uses cream tones;
   // light mode (flat map / paper) uses ink tones.
@@ -108,7 +136,9 @@ export default function JourneyFilmstrip({
       transition={{ duration: 0.6, delay: 0.3 }}
       className="pointer-events-auto fixed inset-x-0 bottom-10 z-30 flex justify-center"
       onMouseLeave={() => {
+        clearDwell();
         lastReported.current = null;
+        setPreviewStop(null);
         onHover(null);
       }}
     >
@@ -158,23 +188,37 @@ export default function JourneyFilmstrip({
             style={{ width: `${progressPct}%`, background: c.fill }}
           />
 
-          {/* Dot per stop — purely decorative; the whole row is clickable. */}
+          {/* Dot per stop — purely decorative; the whole row is clickable.
+           *  Committed stop = large amber dot. Preview stop (cursor position
+           *  before dwell commits) = medium pulsing dot — a hint that the
+           *  globe will rotate here if you stay. */}
           <div className="absolute inset-0 flex items-center justify-between">
             {stops.map(({ stop }) => {
-              const isActive = stop === clamped;
+              const isCommitted = stop === clamped;
+              const isPreview =
+                previewStop !== null && stop === previewStop && !isCommitted;
+              const size = isCommitted ? 8 : isPreview ? 5 : 2.6;
               return (
                 <span
                   key={stop}
                   className="block rounded-full transition-all"
                   style={{
-                    width: isActive ? 8 : 2.6,
-                    height: isActive ? 8 : 2.6,
-                    background: isActive ? c.active : c.tick,
-                    boxShadow: isActive
+                    width: size,
+                    height: size,
+                    background: isCommitted
+                      ? c.active
+                      : isPreview
+                        ? c.fill
+                        : c.tick,
+                    boxShadow: isCommitted
                       ? dark
                         ? "0 0 10px rgba(253,232,184,0.6)"
                         : "0 0 8px rgba(182,128,58,0.5)"
-                      : undefined,
+                      : isPreview
+                        ? dark
+                          ? "0 0 6px rgba(253,232,184,0.4)"
+                          : "0 0 4px rgba(182,128,58,0.35)"
+                        : undefined,
                   }}
                 />
               );

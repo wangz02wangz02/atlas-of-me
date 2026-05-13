@@ -49,9 +49,10 @@ export const CONTINENT_VIEW: Record<
   Continent | "All",
   { center: [number, number]; zoom: number }
 > = {
-  // "All" sits at a slightly-zoomed-out default so the entire world fits with
-  // breathing room around it rather than feeling cropped on first paint.
-  All: { center: [10, 25], zoom: 0.85 },
+  // "All" view — zoomed back enough that the whole world fits with comfortable
+  // breathing room around it. The user kept reporting "still zoomed in," so
+  // this is generous on purpose.
+  All: { center: [0, 15], zoom: 0.65 },
   Africa: { center: [10, 15], zoom: 2 },
   Asia: { center: [60, 35], zoom: 1.6 },
   Europe: { center: [15, 52], zoom: 2.6 },

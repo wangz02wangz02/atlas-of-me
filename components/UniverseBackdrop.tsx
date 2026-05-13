@@ -22,14 +22,18 @@ type Star = {
   bright: boolean;
 };
 
-type Planet = {
+type Body = {
+  kind: "planet" | "moon" | "sun" | "mars";
   x: number;
   y: number;
   r: number;
   driftSec: number;
   hue: string;
+  hueDeep?: string;
   ring?: boolean;
   ringTilt?: number;
+  label?: string;
+  sublabel?: string;
 };
 
 const PALETTES: Record<NonNullable<Props["palette"]>, {
@@ -111,23 +115,53 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
     return out;
   }, [palette]);
 
-  const planets: Planet[] = useMemo(
+  const bodies: Body[] = useMemo(
     () => [
+      // The Sun — top-right corner, big warm disk with a corona.
       {
-        x: 16,
-        y: 28,
-        r: 46,
-        driftSec: 240,
-        hue: palette === "memories" ? "#6a5ca8" : "#8674b8",
+        kind: "sun",
+        x: 88,
+        y: 16,
+        r: 58,
+        driftSec: 420,
+        hue: "#ffd07a",
+        hueDeep: "#ff8a3a",
+        label: "Sol",
       },
+      // The Moon — lower-left, smaller pale disk with subtle crater shading.
       {
-        x: 84,
-        y: 76,
-        r: 74,
-        driftSec: 360,
-        hue: palette === "memories" ? "#b07a5a" : "#a87a4a",
+        kind: "moon",
+        x: 12,
+        y: 78,
+        r: 38,
+        driftSec: 320,
+        hue: "#d8d4cb",
+        hueDeep: "#8e8a82",
+        label: "Luna",
+      },
+      // Mars — middle-right, smaller rust disk. Pinned as a "future
+      // destination" so it threads through to the predict panel.
+      {
+        kind: "mars",
+        x: 76,
+        y: 62,
+        r: 26,
+        driftSec: 260,
+        hue: "#d96a3a",
+        hueDeep: "#7a3115",
+        label: "Mars",
+        sublabel: "future destination",
+      },
+      // One ringed gas-giant-ish planet for variety, far upper-left.
+      {
+        kind: "planet",
+        x: 18,
+        y: 26,
+        r: 30,
+        driftSec: 380,
+        hue: palette === "memories" ? "#7e6cb0" : "#8c78b8",
         ring: true,
-        ringTilt: -18,
+        ringTilt: -20,
       },
     ],
     [palette],
@@ -164,8 +198,9 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
         }}
       />
 
-      {/* Distant planets — drift in a very slow elliptical loop */}
-      {planets.map((p, i) => (
+      {/* Celestial bodies — Sun, Moon, Mars, and a far gas-giant. Each
+       *  drifts very slowly so they feel distant rather than animated. */}
+      {bodies.map((p, i) => (
         <motion.div
           key={i}
           className="absolute"
@@ -176,11 +211,11 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
             height: p.r * 2,
             marginLeft: -p.r,
             marginTop: -p.r,
-            opacity: 0.35,
+            opacity: p.kind === "sun" ? 0.65 : 0.42,
           }}
           animate={{
-            x: [0, 14, 0, -14, 0],
-            y: [0, -8, 0, 8, 0],
+            x: [0, 12, 0, -12, 0],
+            y: [0, -6, 0, 6, 0],
           }}
           transition={{
             duration: p.driftSec,
@@ -188,18 +223,43 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
             ease: "easeInOut",
           }}
         >
-          <svg viewBox={`-${p.r} -${p.r} ${p.r * 2} ${p.r * 2}`} width="100%" height="100%">
+          <svg
+            viewBox={`-${p.r * 1.6} -${p.r * 1.6} ${p.r * 3.2} ${p.r * 3.2}`}
+            width="100%"
+            height="100%"
+            style={{ overflow: "visible" }}
+          >
             <defs>
-              <radialGradient id={`planet-grad-${i}-${palette}`} cx="32%" cy="30%" r="78%">
-                <stop offset="0%" stopColor={p.hue} stopOpacity={0.85} />
-                <stop offset="55%" stopColor={p.hue} stopOpacity={0.55} />
-                <stop offset="100%" stopColor={p.hue} stopOpacity={0.05} />
+              <radialGradient id={`body-grad-${i}-${palette}`} cx="32%" cy="30%" r="78%">
+                <stop offset="0%" stopColor={p.hue} stopOpacity={0.95} />
+                <stop offset="55%" stopColor={p.hueDeep ?? p.hue} stopOpacity={0.6} />
+                <stop offset="100%" stopColor={p.hueDeep ?? p.hue} stopOpacity={0.05} />
               </radialGradient>
-              <radialGradient id={`planet-shade-${i}-${palette}`} cx="68%" cy="74%" r="64%">
+              <radialGradient id={`body-shade-${i}-${palette}`} cx="68%" cy="74%" r="64%">
                 <stop offset="0%" stopColor="#000" stopOpacity={0} />
                 <stop offset="100%" stopColor="#000" stopOpacity={0.45} />
               </radialGradient>
+              {p.kind === "sun" && (
+                <radialGradient id={`body-corona-${i}`} cx="50%" cy="50%" r="60%">
+                  <stop offset="0%" stopColor={p.hue} stopOpacity={0.7} />
+                  <stop offset="35%" stopColor={p.hue} stopOpacity={0.28} />
+                  <stop offset="100%" stopColor={p.hue} stopOpacity={0} />
+                </radialGradient>
+              )}
+              {p.kind === "moon" && (
+                <radialGradient id={`body-crater-${i}`} cx="38%" cy="32%" r="62%">
+                  <stop offset="0%" stopColor="#fffaf0" stopOpacity={0.6} />
+                  <stop offset="60%" stopColor="#fffaf0" stopOpacity={0} />
+                </radialGradient>
+              )}
             </defs>
+
+            {/* Corona / glow for the sun */}
+            {p.kind === "sun" && (
+              <circle r={p.r * 1.4} fill={`url(#body-corona-${i})`} />
+            )}
+
+            {/* Ring for gas-giant planets */}
             {p.ring && (
               <g transform={`rotate(${p.ringTilt ?? -15})`}>
                 <ellipse
@@ -209,7 +269,7 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
                   ry={p.r * 0.22}
                   fill="none"
                   stroke={p.hue}
-                  strokeOpacity={0.55}
+                  strokeOpacity={0.6}
                   strokeWidth={1.4}
                 />
                 <ellipse
@@ -224,8 +284,74 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
                 />
               </g>
             )}
-            <circle r={p.r * 0.6} fill={`url(#planet-grad-${i}-${palette})`} />
-            <circle r={p.r * 0.6} fill={`url(#planet-shade-${i}-${palette})`} />
+
+            {/* Body disk */}
+            <circle r={p.r * 0.62} fill={`url(#body-grad-${i}-${palette})`} />
+
+            {/* Moon: a few faint craters */}
+            {p.kind === "moon" && (
+              <g opacity={0.5}>
+                <circle cx={-p.r * 0.22} cy={p.r * 0.12} r={p.r * 0.08} fill="#9c958a" />
+                <circle cx={p.r * 0.18} cy={-p.r * 0.04} r={p.r * 0.05} fill="#9c958a" />
+                <circle cx={p.r * 0.05} cy={p.r * 0.25} r={p.r * 0.06} fill="#9c958a" />
+                <circle r={p.r * 0.62} fill={`url(#body-crater-${i})`} />
+              </g>
+            )}
+
+            {/* Mars: subtle polar cap */}
+            {p.kind === "mars" && (
+              <g opacity={0.7}>
+                <ellipse
+                  cx={p.r * 0.05}
+                  cy={-p.r * 0.42}
+                  rx={p.r * 0.16}
+                  ry={p.r * 0.08}
+                  fill="#fde8c4"
+                />
+              </g>
+            )}
+
+            {/* Shading */}
+            <circle r={p.r * 0.62} fill={`url(#body-shade-${i}-${palette})`} />
+
+            {/* Labels */}
+            {p.label && (
+              <g
+                fontFamily="ui-monospace, monospace"
+                style={{ pointerEvents: "none" }}
+              >
+                <line
+                  x1={p.r * 0.5}
+                  y1={p.r * 0.5}
+                  x2={p.r * 0.9}
+                  y2={p.r * 0.9}
+                  stroke="rgba(253,232,184,0.45)"
+                  strokeWidth={0.6}
+                />
+                <text
+                  x={p.r * 0.95}
+                  y={p.r * 0.95}
+                  fontSize={p.r * 0.18}
+                  fill="rgba(253,232,184,0.85)"
+                  letterSpacing="2"
+                  style={{ textTransform: "uppercase" }}
+                >
+                  {p.label}
+                </text>
+                {p.sublabel && (
+                  <text
+                    x={p.r * 0.95}
+                    y={p.r * 1.15}
+                    fontSize={p.r * 0.12}
+                    fill="rgba(253,232,184,0.55)"
+                    letterSpacing="1.5"
+                    fontStyle="italic"
+                  >
+                    {p.sublabel}
+                  </text>
+                )}
+              </g>
+            )}
           </svg>
         </motion.div>
       ))}

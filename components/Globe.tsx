@@ -296,17 +296,26 @@ const GlobeSVG = memo(function GlobeSVG({
 
       {showRoute && trailPoints.length > 1 && (
         <g pointerEvents="none">
+          {/* Three-layer trail so the route glows on the dark universe
+           *  without going neon. Outer cream halo + warm gold mid-band +
+           *  bright cream-gold core. */}
           <Trail
             points={trailPoints}
             rotate={rotate}
-            color="rgba(182, 128, 58, 0.10)"
-            width={3.6}
+            color="rgba(253, 220, 150, 0.18)"
+            width={6.5}
           />
           <Trail
             points={trailPoints}
             rotate={rotate}
-            color="rgba(182, 128, 58, 0.55)"
-            width={0.9}
+            color="rgba(245, 195, 110, 0.55)"
+            width={2.6}
+          />
+          <Trail
+            points={trailPoints}
+            rotate={rotate}
+            color="rgba(255, 232, 184, 0.95)"
+            width={1.4}
           />
         </g>
       )}
@@ -328,8 +337,12 @@ const GlobeSVG = memo(function GlobeSVG({
           const isConnected =
             hoveredSlugs.size > 0 &&
             (hoveredSlugs.has(leg.from) || hoveredSlugs.has(leg.to));
-          const op = isCurrent ? 0.95 : isConnected ? 0.85 : 0.08;
-          const w = isCurrent ? style.width + 0.6 : isConnected ? 1 : 0.4;
+          const op = isCurrent ? 0.95 : isConnected ? 0.9 : 0.18;
+          const w = isCurrent
+            ? style.width + 1.2
+            : isConnected
+              ? 1.8
+              : 0.85;
           return (
             <Line
               key={leg.index}
@@ -574,6 +587,10 @@ function GlobeImpl({
 }: Props) {
   const [rotate, setRotate] = useState<[number, number, number]>([-15, -25, 0]);
   const [zoom, setZoom] = useState<number>(1);
+  // Translation offset in pixels — lets the user push the globe around inside
+  // the universe with Shift+drag (or right/middle button drag). The globe
+  // feels like a free-floating object rather than a fixed centerpiece.
+  const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [hoveredMarkerCountry, setHoveredMarkerCountry] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -673,10 +690,18 @@ function GlobeImpl({
     return () => cancelAnimationFrame(raf);
   }, [focusedSlug, places]);
 
+  // Track whether the drag-down was started while shift was held so the
+  // gesture stays in "translate mode" even if the user lets go of shift
+  // mid-drag.
+  const dragMode = useRef<"rotate" | "translate">("rotate");
+
   const onPointerDown = (e: React.PointerEvent) => {
     dragging.current = true;
     lastPointer.current = { x: e.clientX, y: e.clientY };
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    // Shift, right-click, or middle-click → translate. Otherwise rotate.
+    dragMode.current =
+      e.shiftKey || e.button === 1 || e.button === 2 ? "translate" : "rotate";
     interactingAt.current = performance.now();
   };
   const onPointerMove = (e: React.PointerEvent) => {
@@ -696,20 +721,28 @@ function GlobeImpl({
     const dx = e.clientX - lastPointer.current.x;
     const dy = e.clientY - lastPointer.current.y;
     lastPointer.current = { x: e.clientX, y: e.clientY };
-    setRotate(([l, p, g]) => {
-      const nl = (l + (dx * 0.4) / zoom) % 360;
-      const np = Math.max(-89, Math.min(89, p - (dy * 0.4) / zoom));
-      const next: [number, number, number] = [nl, np, g];
-      rotateRef.current = next;
-      return next;
-    });
+    if (dragMode.current === "translate") {
+      setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+    } else {
+      setRotate(([l, p, g]) => {
+        const nl = (l + (dx * 0.4) / zoom) % 360;
+        const np = Math.max(-89, Math.min(89, p - (dy * 0.4) / zoom));
+        const next: [number, number, number] = [nl, np, g];
+        rotateRef.current = next;
+        return next;
+      });
+    }
     interactingAt.current = performance.now();
   };
   const onPointerUp = () => {
     dragging.current = false;
     lastPointer.current = null;
+    dragMode.current = "rotate";
     interactingAt.current = performance.now();
   };
+
+  // Double-click on empty area = recenter the globe back to the middle.
+  const recenter = () => setOffset({ x: 0, y: 0 });
 
   useEffect(() => {
     const el = wrapperRef.current;
@@ -717,7 +750,9 @@ function GlobeImpl({
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      setZoom((z) => Math.max(0.7, Math.min(4, z * factor)));
+      // Min 0.4 so the user can pull back and see lots of universe around the
+      // globe; max 16 so they can also zoom in really close to the surface.
+      setZoom((z) => Math.max(0.4, Math.min(16, z * factor)));
       interactingAt.current = performance.now();
     };
     el.addEventListener("wheel", handler, { passive: false });
@@ -749,7 +784,12 @@ function GlobeImpl({
     <div
       ref={wrapperRef}
       className="relative w-full select-none touch-none"
-      style={{ aspectRatio: "1 / 1", maxWidth: size }}
+      style={{
+        aspectRatio: "1 / 1",
+        maxWidth: size,
+        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        transition: dragging.current ? "none" : "transform 220ms ease-out",
+      }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -760,6 +800,8 @@ function GlobeImpl({
         setHoveredMarkerCountry(null);
         onCountryHover?.(null);
       }}
+      onDoubleClick={recenter}
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* Soft halo (drawn outside the clipped SVG so it isn't trimmed) */}
       <div

@@ -175,8 +175,11 @@ function LegArc({
     projection: (c: [number, number]) => [number, number] | null;
   };
   const segments = useMemo(() => {
+    // High step count so high-latitude great-circle arcs (e.g., anything
+    // crossing the Bering Strait or hopping near the pole) render as a
+    // smooth polyline instead of a few coarse chords.
     const interp = geoInterpolate(from, to);
-    const STEPS = 36;
+    const STEPS = 72;
     const pts: Array<[number, number]> = [];
     for (let i = 0; i <= STEPS; i++) pts.push(interp(i / STEPS));
     return projectSegments(pts, projection);
@@ -254,7 +257,7 @@ const MapBody = memo(function MapBody({
     for (let i = 0; i < upTo; i++) {
       const leg = legs[i];
       const interp = geoInterpolate(leg.fromCoord, leg.toCoord);
-      const steps = 18;
+      const steps = 36;
       for (let s = 0; s <= steps; s++) out.push(interp(s / steps));
     }
     return out;
