@@ -28,6 +28,9 @@ import {
   getCountryMemoryDensity,
 } from "@/lib/places";
 import LandmarkLayer from "./LandmarkLayer";
+import UserPinMarker, { UserPinDefs } from "./UserPinMarker";
+import ClickCatcher from "./ClickCatcher";
+import type { UserPin } from "@/lib/user-pins";
 
 const GEO_URL = "/geo/countries-110m.json";
 
@@ -38,12 +41,22 @@ type Props = {
   showTerminator?: boolean;
   showClocks?: boolean;
   showLandmarks?: boolean;
+  /** Size multiplier for landmark figurines. */
+  landmarkScale?: number;
   showHeatmap?: boolean;
   legsThrough?: number | null;
   size?: number;
   /** When true, the focus marker shines/sparkles brighter — used during the
    *  Random Place spinner. */
   sparkle?: boolean;
+  /** Add-pin mode: cursor becomes a crosshair, any click on the orb is
+   *  projected to [lon, lat] and forwarded via onMapClick. */
+  addPinMode?: boolean;
+  onMapClick?: (lonLat: [number, number]) => void;
+  /** User-added pins to render. */
+  userPins?: UserPin[];
+  freshPinId?: string | null;
+  onPinClick?: (pin: UserPin) => void;
   /** Camera offset in pixels. Drives both the globe's own translate
    *  AND the parallax in the surrounding universe — they live together
    *  in Stage so the whole scene flies coherently. */
@@ -124,11 +137,17 @@ const GlobeSVG = memo(function GlobeSVG({
   showRoute,
   showTerminator,
   showLandmarks,
+  landmarkScale,
   showClocks,
   showHeatmap,
   legsThrough,
   focusedSlug,
   sparkle,
+  addPinMode,
+  onMapClick,
+  userPins,
+  freshPinId,
+  onPinClick,
   nowMs,
   onCountryEnter,
   onCountryClick,
@@ -145,11 +164,17 @@ const GlobeSVG = memo(function GlobeSVG({
   showRoute: boolean;
   showTerminator: boolean;
   showLandmarks: boolean;
+  landmarkScale: number;
   showClocks: boolean;
   showHeatmap: boolean;
   legsThrough: number | null;
   focusedSlug: string | null;
   sparkle: boolean;
+  addPinMode: boolean;
+  onMapClick?: (lonLat: [number, number]) => void;
+  userPins: UserPin[];
+  freshPinId: string | null;
+  onPinClick?: (pin: UserPin) => void;
   nowMs: number;
   onCountryEnter: (name: string) => void;
   onCountryClick: (name: string, hasPlace: boolean) => void;
@@ -256,6 +281,7 @@ const GlobeSVG = memo(function GlobeSVG({
           <stop offset="60%" stopColor="#ff9a3a" stopOpacity="0.4" />
           <stop offset="100%" stopColor="#ff9a3a" stopOpacity="0" />
         </radialGradient>
+        <UserPinDefs />
       </defs>
 
       {/* Ocean sphere */}
@@ -544,7 +570,33 @@ const GlobeSVG = memo(function GlobeSVG({
         <LandmarkLayer
           places={places}
           visibleByPlace={visibleByPlace}
+          scale={landmarkScale}
         />
+      )}
+
+      {/* User-added pins — visible only when on the front hemisphere. */}
+      {userPins.map((pin) => {
+        if (!isVisible(pin.coords, rotate)) return null;
+        return (
+          <UserPinMarker
+            key={pin.id}
+            coords={pin.coords}
+            fresh={pin.id === freshPinId}
+            scale={1}
+            label={pin.city}
+            theme="universe"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPinClick?.(pin);
+            }}
+          />
+        );
+      })}
+
+      {/* Click catcher — active only in add-pin mode. Captures any
+       *  click on the orb and forwards the [lon, lat]. */}
+      {onMapClick && (
+        <ClickCatcher active={addPinMode} onPick={onMapClick} />
       )}
     </ComposableMap>
   );
@@ -665,10 +717,16 @@ function GlobeImpl({
   showTerminator = true,
   showClocks = false,
   showLandmarks = false,
+  landmarkScale = 1.3,
   showHeatmap = false,
   legsThrough = null,
   size = 520,
   sparkle = false,
+  addPinMode = false,
+  onMapClick,
+  userPins = [],
+  freshPinId = null,
+  onPinClick,
   cameraOffset = { x: 0, y: 0 },
   onCameraChange,
   placeSlugs,
@@ -938,6 +996,12 @@ function GlobeImpl({
         showTerminator={showTerminator}
         showClocks={showClocks}
         showLandmarks={showLandmarks}
+        landmarkScale={landmarkScale}
+        addPinMode={addPinMode}
+        onMapClick={onMapClick}
+        userPins={userPins}
+        freshPinId={freshPinId}
+        onPinClick={onPinClick}
         showHeatmap={showHeatmap}
         legsThrough={legsThrough}
         focusedSlug={focusedSlug}

@@ -1404,9 +1404,11 @@ const FALLBACK = (
 export default function LandmarkLayer({
   places,
   visibleByPlace,
+  scale = 1.3,
 }: {
   places: Place[];
   visibleByPlace: Map<string, boolean>;
+  scale?: number;
 }) {
   // One landmark per country (use the first matching place by stop order)
   const seen = new Set<string>();
@@ -1417,15 +1419,23 @@ export default function LandmarkLayer({
     if (visibleByPlace && !visibleByPlace.get(p.slug)) continue;
     items.push({ slug: p.slug, coord: p.coordinates, country: p.country });
   }
+  // Shadow scales with the figurine
+  const shadowRX = 10 * scale;
+  const shadowRY = 2 * scale;
   return (
     <g pointerEvents="none">
       {items.map((it) => {
         const icon = LANDMARK[it.country] ?? FALLBACK;
         return (
           <Marker key={`lm-${it.slug}`} coordinates={it.coord}>
-            <g>
-              {/* soft drop shadow under the figurine */}
-              <ellipse cx="0" cy="1.6" rx="10" ry="2" fill="rgba(40,25,8,0.22)" />
+            <g transform={`scale(${scale.toFixed(3)})`}>
+              <ellipse
+                cx="0"
+                cy={1.6}
+                rx={shadowRX / scale}
+                ry={shadowRY / scale}
+                fill="rgba(40,25,8,0.22)"
+              />
               {icon}
             </g>
           </Marker>

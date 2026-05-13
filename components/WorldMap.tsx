@@ -28,6 +28,9 @@ import {
 import LandmarkLayer from "./LandmarkLayer";
 import LegTraveler from "./LegTraveler";
 import { catmullRomPath } from "@/lib/spline";
+import UserPinMarker, { UserPinDefs } from "./UserPinMarker";
+import ClickCatcher from "./ClickCatcher";
+import type { UserPin } from "@/lib/user-pins";
 
 const GEO_URL = "/geo/countries-110m.json";
 const TO_RAD = Math.PI / 180;
@@ -44,6 +47,7 @@ type Props = {
   showTerminator?: boolean;
   showClocks?: boolean;
   showLandmarks?: boolean;
+  landmarkScale?: number;
   showHeatmap?: boolean;
   legsThrough?: number | null;
   /** 0-based index of the leg that just brought the traveler to the focused stop.
@@ -53,6 +57,12 @@ type Props = {
   /** When true, the focus marker shines/sparkles brighter — used during the
    *  Random Place spinner so the user can actually see what's being picked. */
   sparkle?: boolean;
+  /** Add-pin mode: click anywhere → project to [lon, lat] → onMapClick. */
+  addPinMode?: boolean;
+  onMapClick?: (lonLat: [number, number]) => void;
+  userPins?: UserPin[];
+  freshPinId?: string | null;
+  onPinClick?: (pin: UserPin) => void;
   placeSlugs?: Set<string>;
   onMoveEnd?: (pos: { coordinates: [number, number]; zoom: number }) => void;
   onCountryHover?: (countryName: string | null) => void;
@@ -300,6 +310,7 @@ const MapBody = memo(function MapBody({
   showTerminator,
   showClocks,
   showLandmarks,
+  landmarkScale,
   showHeatmap,
   legsThrough,
   activeLegIndex,
@@ -320,6 +331,7 @@ const MapBody = memo(function MapBody({
   showTerminator: boolean;
   showClocks: boolean;
   showLandmarks: boolean;
+  landmarkScale: number;
   showHeatmap: boolean;
   legsThrough: number | null;
   activeLegIndex: number | null;
@@ -583,7 +595,13 @@ const MapBody = memo(function MapBody({
       })}
 
       {showClocks && <ClockLayerFlat places={places} nowMs={nowMs} zoom={zoom} />}
-      {showLandmarks && <LandmarkLayer places={places} visibleByPlace={visibleAll} />}
+      {showLandmarks && (
+        <LandmarkLayer
+          places={places}
+          visibleByPlace={visibleAll}
+          scale={landmarkScale}
+        />
+      )}
     </>
   );
 });
@@ -650,11 +668,17 @@ export default function WorldMap({
   showTerminator = false,
   showClocks = false,
   showLandmarks = false,
+  landmarkScale = 1.3,
   showHeatmap = false,
   legsThrough = null,
   activeLegIndex = null,
   focusedSlug = null,
   sparkle = false,
+  addPinMode = false,
+  onMapClick,
+  userPins = [],
+  freshPinId = null,
+  onPinClick,
   placeSlugs,
   onMoveEnd,
   onCountryHover,
@@ -767,6 +791,7 @@ export default function WorldMap({
             <stop offset="35%" stopColor="#ffd87f" stopOpacity="0.45" />
             <stop offset="100%" stopColor="#ffd87f" stopOpacity="0" />
           </radialGradient>
+          <UserPinDefs />
         </defs>
 
         {/* Ocean stripe across all wrap copies, wider so the rectangle
@@ -803,6 +828,7 @@ export default function WorldMap({
                 showTerminator={showTerminator}
                 showClocks={showClocks}
                 showLandmarks={showLandmarks}
+                landmarkScale={landmarkScale}
                 showHeatmap={showHeatmap}
                 legsThrough={legsThrough}
                 activeLegIndex={activeLegIndex}
@@ -817,6 +843,29 @@ export default function WorldMap({
               />
             </g>
           ))}
+
+          {/* User-added pins. Inside ZoomableGroup so they pan / zoom with
+           *  the map, but outside the wrap-copies loop so each pin only
+           *  renders once. */}
+          {userPins.map((pin) => (
+            <UserPinMarker
+              key={pin.id}
+              coords={pin.coords}
+              fresh={pin.id === freshPinId}
+              scale={1 / Math.max(0.5, zoom)}
+              label={pin.city}
+              theme="paper"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPinClick?.(pin);
+              }}
+            />
+          ))}
+
+          {/* Click catcher — only active in add-pin mode. */}
+          {onMapClick && (
+            <ClickCatcher active={addPinMode} onPick={onMapClick} />
+          )}
         </ZoomableGroup>
       </ComposableMap>
 

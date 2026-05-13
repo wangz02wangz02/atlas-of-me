@@ -15,6 +15,14 @@ import PlaceDetailClient from "./PlaceDetailClient";
 import UniverseBackdrop from "./UniverseBackdrop";
 import ActivitiesPanel from "./ActivitiesPanel";
 import AmbientPlayer from "./AmbientPlayer";
+import UserPinForm from "./UserPinForm";
+import {
+  loadPins,
+  savePins,
+  newPinId,
+  type UserPin,
+} from "@/lib/user-pins";
+import { warmCountryLookup } from "@/lib/country-lookup";
 import { LEGS, CITIES, CONTINENT_VIEW } from "@/lib/places";
 import type { Place } from "@/lib/places-types";
 
@@ -26,6 +34,7 @@ const DEFAULT_LAYERS: Layers = {
   clocks: false,
   landmarks: false,
   heatmap: false,
+  landmarkSize: 1.3,
 };
 
 export default function Stage({ places }: { places: Place[] }) {
@@ -50,6 +59,76 @@ export default function Stage({ places }: { places: Place[] }) {
   const [activitiesOpen, setActivitiesOpen] = useState(false);
   // Which celestial body the user has pulled to center. Null = Earth-centered.
   const [focalBody, setFocalBody] = useState<string | null>(null);
+
+  // User-added pins. Loaded from localStorage on mount; saved on every
+  // change. addPinMode toggles the "click anywhere on the map to drop a
+  // pin" cursor. pinForm holds the pin being created/edited.
+  const [userPins, setUserPins] = useState<UserPin[]>([]);
+  const [addPinMode, setAddPinMode] = useState(false);
+  const [pinForm, setPinForm] = useState<
+    | { mode: "new"; coords: [number, number] }
+    | { mode: "edit"; pin: UserPin }
+    | null
+  >(null);
+  const [freshPinId, setFreshPinId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setUserPins(loadPins());
+    warmCountryLookup();
+  }, []);
+
+  // ESC exits add-pin mode without committing anything.
+  useEffect(() => {
+    if (!addPinMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAddPinMode(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [addPinMode]);
+
+  const onMapClick = useCallback(
+    (lonLat: [number, number]) => {
+      if (!addPinMode) return;
+      setAddPinMode(false);
+      setPinForm({ mode: "new", coords: lonLat });
+    },
+    [addPinMode],
+  );
+
+  const savePin = (city: string, country: string) => {
+    if (!pinForm) return;
+    if (pinForm.mode === "new") {
+      const id = newPinId();
+      const pin: UserPin = {
+        id,
+        city,
+        country,
+        coords: pinForm.coords,
+        createdAt: Date.now(),
+      };
+      const next = [...userPins, pin];
+      setUserPins(next);
+      savePins(next);
+      setFreshPinId(id);
+      window.setTimeout(() => setFreshPinId(null), 2400);
+    } else {
+      const next = userPins.map((p) =>
+        p.id === pinForm.pin.id ? { ...p, city, country } : p,
+      );
+      setUserPins(next);
+      savePins(next);
+    }
+    setPinForm(null);
+  };
+
+  const deletePin = () => {
+    if (!pinForm || pinForm.mode !== "edit") return;
+    const next = userPins.filter((p) => p.id !== pinForm.pin.id);
+    setUserPins(next);
+    savePins(next);
+    setPinForm(null);
+  };
   const overlayScrollRef = useRef<HTMLDivElement>(null);
 
   const placesByCountry = useMemo(() => {
@@ -231,6 +310,79 @@ export default function Stage({ places }: { places: Place[] }) {
       {/* Ambient music toggle — top-right speaker pill. Default off. */}
       <AmbientPlayer />
 
+      {/* Add-pin button — floating bottom-right. Clicking enters "drop a
+       *  pin" mode; the cursor across the map becomes a crosshair and any
+       *  click opens the pin form. Click again (or escape) to exit. */}
+      <button
+        type="button"
+        onClick={() => setAddPinMode((m) => !m)}
+        aria-label={addPinMode ? "Cancel add pin" : "Drop a pin on the map"}
+        title={
+          addPinMode
+            ? "Click anywhere on the map to drop a pin (or click here to cancel)"
+            : "Drop a pin on the map"
+        }
+        className={`pointer-events-auto fixed bottom-24 right-6 z-30 grid h-12 w-12 place-items-center rounded-full border shadow-lg backdrop-blur transition ${
+          addPinMode
+            ? "border-rust bg-rust/15 text-rust"
+            : "border-paper-3/70 bg-paper/90 text-ink hover:border-amber hover:text-amber"
+        }`}
+      >
+        <svg
+          width="20"
+          height="20"
+          viewBox="-10 -10 20 20"
+          style={{
+            transform: addPinMode ? "rotate(45deg)" : "rotate(0deg)",
+            transition: "transform 220ms ease",
+          }}
+        >
+          <line
+            x1="-7"
+            y1="0"
+            x2="7"
+            y2="0"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+          <line
+            x1="0"
+            y1="-7"
+            x2="0"
+            y2="7"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+          />
+        </svg>
+      </button>
+
+      {/* Pin-mode helper hint */}
+      {addPinMode && (
+        <div className="pointer-events-none fixed inset-x-0 top-20 z-30 flex justify-center">
+          <div className="rounded-full border border-rust/40 bg-rust/10 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-rust">
+            click anywhere on the map to drop a pin · esc to cancel
+          </div>
+        </div>
+      )}
+
+      {/* Pin form modal */}
+      <AnimatePresence>
+        {pinForm && (
+          <UserPinForm
+            initial={
+              pinForm.mode === "new"
+                ? { coords: pinForm.coords }
+                : pinForm.pin
+            }
+            onSave={({ city, country }) => savePin(city, country)}
+            onCancel={() => setPinForm(null)}
+            onDelete={pinForm.mode === "edit" ? deletePin : undefined}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Universe backdrop for Globe and Memories views — rendered BEFORE
        *  the stage in DOM order AND with a low z-index so it stays beneath
        *  the focal orb. (Previously this rendered after the stage and was
@@ -288,6 +440,11 @@ export default function Stage({ places }: { places: Place[] }) {
                 legsThrough={legsThrough}
                 size={900}
                 sparkle={randomSpinning}
+                addPinMode={addPinMode}
+                onMapClick={onMapClick}
+                userPins={userPins}
+                freshPinId={freshPinId}
+                onPinClick={(pin) => setPinForm({ mode: "edit", pin })}
                 cameraOffset={cameraOffset}
                 onCameraChange={(next) => {
                   // Clamp so the Earth never gets dragged fully off
@@ -309,6 +466,7 @@ export default function Stage({ places }: { places: Place[] }) {
                 showTerminator={layers.dayNight}
                 showClocks={layers.clocks}
                 showLandmarks={layers.landmarks}
+                landmarkScale={layers.landmarkSize}
                 showHeatmap={layers.heatmap}
                 onCountryHover={onCountryHover}
                 onCountryClick={onCountryClick}
@@ -332,11 +490,17 @@ export default function Stage({ places }: { places: Place[] }) {
                 activeLegIndex={activeLegIndex}
                 focusedSlug={focusedSlug}
                 sparkle={randomSpinning}
+                addPinMode={addPinMode}
+                onMapClick={onMapClick}
+                userPins={userPins}
+                freshPinId={freshPinId}
+                onPinClick={(pin) => setPinForm({ mode: "edit", pin })}
                 placeSlugs={placeSlugs}
                 showRoute={layers.trail}
                 showTerminator={layers.dayNight}
                 showClocks={layers.clocks}
                 showLandmarks={layers.landmarks}
+                landmarkScale={layers.landmarkSize}
                 showHeatmap={layers.heatmap}
                 onMoveEnd={onMoveEnd}
                 onCountryHover={onCountryHover}
