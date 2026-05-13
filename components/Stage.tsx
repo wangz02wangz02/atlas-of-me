@@ -211,6 +211,24 @@ export default function Stage({ places }: { places: Place[] }) {
 
       <HoveredPlaceCard place={hoveredPlace} />
 
+      {/* Universe backdrop for Globe and Memories views — rendered BEFORE
+       *  the stage in DOM order AND with a low z-index so it stays beneath
+       *  the focal orb. (Previously this rendered after the stage and was
+       *  painting over the globe — making the globe appear to disappear.) */}
+      <AnimatePresence>
+        {(view === "globe" || view === "memories") && (
+          <motion.div
+            key={`bg-${view}`}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <UniverseBackdrop palette={view === "memories" ? "memories" : "globe"} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Map / globe / constellation stage */}
       <motion.div
         animate={{
@@ -219,7 +237,7 @@ export default function Stage({ places }: { places: Place[] }) {
           filter: openSlug ? "blur(4px)" : "blur(0px)",
         }}
         transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        className="absolute inset-0 grid place-items-center"
+        className="absolute inset-0 z-20 grid place-items-center"
       >
         <AnimatePresence mode="wait">
           {view === "globe" && (
@@ -299,25 +317,9 @@ export default function Stage({ places }: { places: Place[] }) {
         </AnimatePresence>
       </motion.div>
 
-      {/* Universe backdrop for Globe and Memories views — fullscreen
-       *  starfield with a couple of distant drifting planets behind the orb. */}
-      <AnimatePresence>
-        {(view === "globe" || view === "memories") && (
-          <motion.div
-            key={`bg-${view}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-          >
-            <UniverseBackdrop palette={view === "memories" ? "memories" : "globe"} />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* Flat-only zoom controls */}
       {view === "flat" && (
-        <div className="pointer-events-auto fixed right-6 top-24 z-20 flex flex-col gap-1">
+        <div className="pointer-events-auto fixed right-6 top-24 z-30 flex flex-col gap-1">
           <ZoomBtn label="+" onClick={zoomIn} />
           <ZoomBtn label="−" onClick={zoomOut} />
           <ZoomBtn label="◯" onClick={resetView} title="Reset view" />

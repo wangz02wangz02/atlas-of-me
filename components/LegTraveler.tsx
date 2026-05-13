@@ -66,30 +66,22 @@ export default function LegTraveler({
 
   const trailPath = useMemo(() => {
     if (t < 0.001) return null;
-    // Split at the antimeridian seam.  We approximate the seam threshold as
-    // "an X-jump larger than 600 SVG units between two consecutive samples,"
-    // which works for both the orthographic globe (non-finite projection on
-    // the back face) and the flat map (large X delta on lon wrap).
-    const SEAM = 600;
+    // Continuous polyline along the leg up to t. We bail only on non-finite
+    // projections (the orthographic globe's back hemisphere); the flat map
+    // keeps the line continuous through the antimeridian, matching the user
+    // preference for "the line connects" over "the line ends cleanly."
     const steps = 28;
     const out: string[] = [];
     let curr: string[] = [];
-    let last: [number, number] | null = null;
     for (let i = 0; i <= steps; i++) {
       const p = interp((i / steps) * t);
       const proj = projection(p);
       if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
         if (curr.length > 1) out.push(`M${curr.join("L")}`);
         curr = [];
-        last = null;
         continue;
       }
-      if (last && Math.abs(proj[0] - last[0]) > SEAM) {
-        if (curr.length > 1) out.push(`M${curr.join("L")}`);
-        curr = [];
-      }
       curr.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
-      last = [proj[0], proj[1]];
     }
     if (curr.length > 1) out.push(`M${curr.join("L")}`);
     return out.length ? out.join(" ") : null;

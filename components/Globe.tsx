@@ -296,8 +296,18 @@ const GlobeSVG = memo(function GlobeSVG({
 
       {showRoute && trailPoints.length > 1 && (
         <g pointerEvents="none">
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.10)" width={3.6} />
-          <Trail points={trailPoints} color="rgba(182, 128, 58, 0.55)" width={0.9} />
+          <Trail
+            points={trailPoints}
+            rotate={rotate}
+            color="rgba(182, 128, 58, 0.10)"
+            width={3.6}
+          />
+          <Trail
+            points={trailPoints}
+            rotate={rotate}
+            color="rgba(182, 128, 58, 0.55)"
+            width={0.9}
+          />
         </g>
       )}
 
@@ -496,10 +506,12 @@ function ClockLayer({
 
 function Trail({
   points,
+  rotate,
   color,
   width,
 }: {
   points: Array<[number, number]>;
+  rotate: [number, number, number];
   color: string;
   width: number;
 }) {
@@ -507,9 +519,20 @@ function Trail({
     projection: (c: [number, number]) => [number, number] | null;
   };
   const segments = useMemo(() => {
+    // For orthographic projection, the raw `projection(p)` returns finite
+    // values even for back-hemisphere points — d3-geo's clipAngle only
+    // applies inside .stream(). We therefore have to manually skip
+    // back-hemisphere points so trails don't bleed through the far side
+    // of the globe.
     const segs: string[] = [];
     let current: string[] = [];
     for (const p of points) {
+      const visible = isVisible(p, rotate);
+      if (!visible) {
+        if (current.length > 1) segs.push(`M${current.join("L")}`);
+        current = [];
+        continue;
+      }
       const proj = projection(p);
       if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
         if (current.length > 1) segs.push(`M${current.join("L")}`);
@@ -520,7 +543,7 @@ function Trail({
     }
     if (current.length > 1) segs.push(`M${current.join("L")}`);
     return segs.join(" ");
-  }, [points, projection]);
+  }, [points, projection, rotate]);
   if (!segments) return null;
   return (
     <path

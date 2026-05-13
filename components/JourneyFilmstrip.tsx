@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { LEGS, CITIES } from "@/lib/places";
 
@@ -40,6 +40,12 @@ export default function JourneyFilmstrip({
   }, []);
 
   const ref = useRef<HTMLDivElement>(null);
+  // Remember the last stop value we reported via onHover so we don't fire a
+  // setState on every mousemove pixel — only when the rounded stop actually
+  // changes.  Otherwise scrubbing across 115 stops would call setStop 100s
+  // of times per second and re-render the world for each, causing the
+  // "stuck/chunky" feel.
+  const lastReported = useRef<number | null>(null);
 
   const total = stops.length;
   // value is 1..total; if user hasn't scrubbed (value > total) we just clamp.
@@ -47,22 +53,27 @@ export default function JourneyFilmstrip({
   const progressPct = ((clamped - 1) / Math.max(1, total - 1)) * 100;
   const currentCity = stops[clamped - 1]?.city;
 
-  // Scrub on cursor X within the bar.
+  const stopFromClientX = useCallback(
+    (clientX: number): number | null => {
+      const el = ref.current;
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      const t = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      return Math.round(1 + t * (total - 1));
+    },
+    [total],
+  );
+
   const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const stop = Math.round(1 + t * (total - 1));
+    const stop = stopFromClientX(e.clientX);
+    if (stop == null || stop === lastReported.current) return;
+    lastReported.current = stop;
     onHover(stop);
   };
 
   const onClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const el = ref.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const t = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    const stop = Math.round(1 + t * (total - 1));
+    const stop = stopFromClientX(e.clientX);
+    if (stop == null) return;
     onSelect(stop);
   };
 
@@ -96,7 +107,10 @@ export default function JourneyFilmstrip({
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, delay: 0.3 }}
       className="pointer-events-auto fixed inset-x-0 bottom-10 z-30 flex justify-center"
-      onMouseLeave={() => onHover(null)}
+      onMouseLeave={() => {
+        lastReported.current = null;
+        onHover(null);
+      }}
     >
       <div
         className={`pointer-events-auto flex w-[min(86vw,640px)] flex-col items-stretch gap-1 rounded-full border px-5 py-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-md ${c.wrap}`}

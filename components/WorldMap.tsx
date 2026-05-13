@@ -91,12 +91,15 @@ function NightShade({ now }: { now: number }) {
 }
 
 /**
- * Convert a sequence of (lon, lat) into one or more projected polyline
- * segments, splitting at the antimeridian seam.  In equirectangular space,
- * a great-circle arc from Tokyo to LA crosses lon=180/-180 and a naive
- * polyline would draw a straight line back across the entire map; this
- * detects the X-jump and yields separate segments instead.  The three
- * wrap copies in the parent then make the two halves visually continuous.
+ * Convert a sequence of (lon, lat) into a single projected polyline.
+ *
+ * We deliberately DON'T split at the antimeridian here.  In equirectangular
+ * space, a great-circle arc from Tokyo to LA crosses lon=180/-180 and the
+ * naive polyline draws one near-horizontal segment at the great-circle apex
+ * (high north latitudes for transpacific routes) that visually wraps the
+ * map.  That's not pretty but it keeps the line continuous, which the user
+ * preferred over seeing two disconnected stubs at the canvas edges.  We
+ * still bail on non-finite projection (orthographic back-hemisphere).
  */
 function projectSegments(
   points: Array<[number, number]>,
@@ -104,22 +107,14 @@ function projectSegments(
 ): string {
   const segs: string[] = [];
   let current: string[] = [];
-  let last: [number, number] | null = null;
-  const SEAM = WORLD_W / 2;
   for (const p of points) {
     const proj = projection(p);
     if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
       if (current.length > 1) segs.push(`M${current.join("L")}`);
       current = [];
-      last = null;
       continue;
     }
-    if (last && Math.abs(proj[0] - last[0]) > SEAM) {
-      if (current.length > 1) segs.push(`M${current.join("L")}`);
-      current = [];
-    }
     current.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
-    last = [proj[0], proj[1]];
   }
   if (current.length > 1) segs.push(`M${current.join("L")}`);
   return segs.join(" ");
@@ -639,18 +634,18 @@ export default function WorldMap({
       }}
     >
       {/*
-        viewBox is 1.5× WORLD_W wide so the right-hand wrap copy is partially
-        visible at default center. This lets trans-pacific great-circle arcs
-        (Tokyo → LA, LA → Sydney) read as continuous lines instead of two
-        seam-stub halves — the seam continuation lives inside the wrap copy
-        rather than past the canvas edge.
+        viewBox is exactly one world wide so the world fills the viewport at
+        default zoom. Trans-pacific great-circle arcs are no longer split at
+        the antimeridian — the continuous polyline includes a single near-
+        horizontal segment at the top latitudes (the great-circle apex)
+        rather than dying at the canvas edge.
       */}
       <ComposableMap
         projection="geoEquirectangular"
         projectionConfig={{ scale: FLAT_SCALE }}
         width={WORLD_W}
         height={WORLD_W / 2}
-        viewBox={`${-WORLD_W / 4} 0 ${WORLD_W * 1.5} ${WORLD_W / 2}`}
+        viewBox={`0 0 ${WORLD_W} ${WORLD_W / 2}`}
         style={{ width: "100%", height: "auto", overflow: "visible" }}
       >
         <defs>
