@@ -222,17 +222,25 @@ const ConstellationSVG = memo(function ConstellationSVG({
       {/* Constellation lines through visited places in journey order */}
       {linePoints.length > 1 && (
         <g pointerEvents="none">
+          {/* Three-layer trail so the route reads brightly on the dark
+           *  sky: wide soft halo + warm gold mid + crisp cream core. */}
           <ConstellationLines
             points={linePoints}
             rotate={rotate}
-            color="rgba(253, 232, 184, 0.08)"
-            width={2.4}
+            color="rgba(253, 220, 150, 0.20)"
+            width={5}
           />
           <ConstellationLines
             points={linePoints}
             rotate={rotate}
-            color="rgba(253, 232, 184, 0.55)"
-            width={0.6}
+            color="rgba(245, 195, 110, 0.65)"
+            width={2}
+          />
+          <ConstellationLines
+            points={linePoints}
+            rotate={rotate}
+            color="rgba(255, 240, 200, 0.95)"
+            width={1}
           />
         </g>
       )}
@@ -257,28 +265,62 @@ const ConstellationSVG = memo(function ConstellationSVG({
         );
       })}
 
-      {/* Stars (visible places) */}
+      {/* Stars (visible places) — brighter, bigger, with a 4-point spike
+       *  so visited cities pop against the night sky. Stars are now built
+       *  in three layers: ambient halo + core + faint cross spike. */}
       {places.map((place) => {
         if (!visibleByPlace.get(place.slug)) return null;
         const score = density.get(place.slug) ?? 1;
         const t = score / maxScore;
-        const r = 1.4 + t * 3.2;
+        const r = 2 + t * 3.6;
         const isHi =
           hoveredCountry !== null &&
           place.country.toLowerCase() === hoveredCountry.toLowerCase();
+        const spike = r * 4.8;
         return (
           <Marker key={place.slug} coordinates={place.coordinates}>
             <g pointerEvents="none">
+              {/* Outer ambient glow — much larger and warmer */}
               <circle
-                r={r * 4}
+                r={r * 5}
                 fill={isHi ? "url(#star-hi-glow)" : "url(#star-glow)"}
+                opacity={isHi ? 0.95 : 0.75}
               />
+              {/* Diffraction spikes — two thin cross lines through center */}
+              <line
+                x1={-spike}
+                y1={0}
+                x2={spike}
+                y2={0}
+                stroke={isHi ? "#ffffff" : "#fde8b8"}
+                strokeOpacity={isHi ? 0.65 : 0.45}
+                strokeWidth={0.6}
+                strokeLinecap="round"
+              />
+              <line
+                x1={0}
+                y1={-spike}
+                x2={0}
+                y2={spike}
+                stroke={isHi ? "#ffffff" : "#fde8b8"}
+                strokeOpacity={isHi ? 0.65 : 0.45}
+                strokeWidth={0.6}
+                strokeLinecap="round"
+              />
+              {/* Soft inner glow */}
               <circle
-                r={r}
-                fill={isHi ? "#ffffff" : "#fde8b8"}
+                r={r * 1.8}
+                fill={isHi ? "#ffffff" : "#fff2c8"}
+                opacity={0.35}
                 filter="url(#star-blur)"
               />
-              <circle r={r * 0.45} fill="#ffffff" />
+              {/* Bright core */}
+              <circle
+                r={r * 0.95}
+                fill={isHi ? "#ffffff" : "#fde8b8"}
+              />
+              {/* White hot center */}
+              <circle r={r * 0.5} fill="#ffffff" />
             </g>
           </Marker>
         );

@@ -5,20 +5,39 @@
  * (C1 continuity), so the resulting curve glides smoothly through every
  * point — no triangle-y corners at the stops.
  *
+ * Consecutive identical points are deduped before the spline runs.  Without
+ * this, callers that build their input by concatenating per-leg
+ * interpolations (where the join is `[…, leg.to, leg.from, …]` with
+ * leg.to == leg.from) feed two identical points to the algorithm, which
+ * collapses the tangent calculation and produces a visible kink at every
+ * city junction.
+ *
  * For pts.length < 2 → empty string.
  * For pts.length === 2 → straight `M..L..` line.
  */
 export function catmullRomPath(pts: Array<[number, number]>): string {
-  if (pts.length < 2) return "";
-  if (pts.length === 2) {
-    return `M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)} L${pts[1][0].toFixed(2)},${pts[1][1].toFixed(2)}`;
+  // Dedupe consecutive identical (or near-identical) points.
+  const cleaned: Array<[number, number]> = [];
+  const EPS = 0.25;
+  for (const p of pts) {
+    const last = cleaned[cleaned.length - 1];
+    if (last && Math.abs(p[0] - last[0]) < EPS && Math.abs(p[1] - last[1]) < EPS) {
+      continue;
+    }
+    cleaned.push(p);
   }
-  const out: string[] = [`M${pts[0][0].toFixed(2)},${pts[0][1].toFixed(2)}`];
-  for (let i = 0; i < pts.length - 1; i++) {
-    const p0 = pts[i - 1] ?? pts[i];
-    const p1 = pts[i];
-    const p2 = pts[i + 1];
-    const p3 = pts[i + 2] ?? pts[i + 1];
+  if (cleaned.length < 2) return "";
+  if (cleaned.length === 2) {
+    return `M${cleaned[0][0].toFixed(2)},${cleaned[0][1].toFixed(2)} L${cleaned[1][0].toFixed(2)},${cleaned[1][1].toFixed(2)}`;
+  }
+  const out: string[] = [
+    `M${cleaned[0][0].toFixed(2)},${cleaned[0][1].toFixed(2)}`,
+  ];
+  for (let i = 0; i < cleaned.length - 1; i++) {
+    const p0 = cleaned[i - 1] ?? cleaned[i];
+    const p1 = cleaned[i];
+    const p2 = cleaned[i + 1];
+    const p3 = cleaned[i + 2] ?? cleaned[i + 1];
     const c1x = p1[0] + (p2[0] - p0[0]) / 6;
     const c1y = p1[1] + (p2[1] - p0[1]) / 6;
     const c2x = p2[0] - (p3[0] - p1[0]) / 6;

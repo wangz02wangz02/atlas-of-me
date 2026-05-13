@@ -451,11 +451,21 @@ const GlobeSVG = memo(function GlobeSVG({
         </Marker>
       )}
 
-      {/* Markers — visible-side only */}
+      {/* Markers — visible-side only.
+       *  Each visited city renders as a small map-style pin: a stem rising
+       *  from the surface, a glowing head, a small base ring. Paris (hub)
+       *  gets a taller stem and a brighter cream head so it reads as the
+       *  anchor of the whole journey. */}
       {places.map((place) => {
         const visible = visibleByPlace.get(place.slug);
         if (!visible) return null;
         const isHub = place.slug === PARIS_SLUG;
+        const stem = isHub ? 14 : 10;
+        const headR = isHub ? 3.6 : 2.6;
+        const haloR = isHub ? 14 : 10;
+        const baseR = isHub ? 1.8 : 1.3;
+        const headFill = isHub ? "#fde8b8" : "#f2b35a";
+        const headStroke = "#3a2a14";
         return (
           <Marker
             key={place.slug}
@@ -470,15 +480,59 @@ const GlobeSVG = memo(function GlobeSVG({
             }}
           >
             <g>
+              {/* Ambient halo around the head */}
               <circle
-                r={isHub ? 10 : 6}
+                cy={-stem}
+                r={haloR}
                 fill={`url(#${isHub ? "globe-marker-paris" : "globe-marker"})`}
               />
+              {/* Base ring on the surface */}
               <circle
-                r={isHub ? 3.2 : 2.2}
-                fill={isHub ? "#fde8b8" : "#b6803a"}
+                r={baseR}
+                fill="#3a2a14"
+                opacity={0.45}
+              />
+              <circle
+                r={baseR * 0.55}
+                fill={headFill}
+              />
+              {/* Stem from surface to pin head */}
+              <line
+                x1={0}
+                y1={0}
+                x2={0}
+                y2={-stem}
                 stroke="#3a2a14"
-                strokeWidth={0.7}
+                strokeWidth={isHub ? 1.6 : 1.2}
+                strokeLinecap="round"
+              />
+              <line
+                x1={0}
+                y1={-1}
+                x2={0}
+                y2={-stem + 1}
+                stroke="#9a4a28"
+                strokeOpacity={0.85}
+                strokeWidth={isHub ? 0.8 : 0.55}
+                strokeLinecap="round"
+              />
+              {/* Pin head */}
+              <circle
+                cx={0}
+                cy={-stem}
+                r={headR}
+                fill={headFill}
+                stroke={headStroke}
+                strokeWidth={0.8}
+              />
+              {/* Highlight reflection on the head */}
+              <ellipse
+                cx={-headR * 0.32}
+                cy={-stem - headR * 0.42}
+                rx={headR * 0.42}
+                ry={headR * 0.28}
+                fill="#ffffff"
+                opacity={0.8}
               />
             </g>
           </Marker>
