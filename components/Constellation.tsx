@@ -102,6 +102,7 @@ const ConstellationSVG = memo(function ConstellationSVG({
   hoveredCountry,
   legsThrough,
   focusedSlug,
+  traceShape,
   onCountryEnter,
   onCountryClick,
 }: {
@@ -112,6 +113,9 @@ const ConstellationSVG = memo(function ConstellationSVG({
   hoveredCountry: string | null;
   legsThrough: number | null;
   focusedSlug: string | null;
+  /** Matched constellation in lon/lat space; rendered on top of the journey
+   *  so the user can see "your trip looks like Cassiopeia" visually. */
+  traceShape: [number, number][] | null;
   onCountryEnter: (name: string) => void;
   onCountryClick: (country: string) => void;
 }) {
@@ -253,6 +257,14 @@ const ConstellationSVG = memo(function ConstellationSVG({
         );
       })}
 
+      {/* Matched constellation trace — bright cream lines + stars
+       *  rendered through the same orthographic projection as the
+       *  journey, so the user can see the resemblance directly on the
+       *  orb. */}
+      {traceShape && traceShape.length > 1 && (
+        <MatchedConstellationOverlay points={traceShape} />
+      )}
+
       {/* Focused stop pulse */}
       {focusedPlace && visibleByPlace.get(focusedPlace.slug) && (
         <Marker coordinates={focusedPlace.coordinates}>
@@ -270,6 +282,115 @@ const ConstellationSVG = memo(function ConstellationSVG({
     </ComposableMap>
   );
 });
+
+/**
+ * Renders the matched constellation directly on the orb, using the same
+ * orthographic projection as the rest of the SVG.  Lines fade in; each
+ * star pops in turn so the shape is "drawn" over the journey path.
+ *
+ * Points are in unwrapped lon/lat space — we re-wrap them into [-180, 180]
+ * for the projection (orthographic naturally returns null on the back
+ * hemisphere, splitting the polyline cleanly).
+ */
+function MatchedConstellationOverlay({
+  points,
+}: {
+  points: [number, number][];
+}) {
+  const { projection } = useMapContext() as {
+    projection: (c: [number, number]) => [number, number] | null;
+  };
+  const wrap = (lon: number) =>
+    ((((lon + 180) % 360) + 360) % 360) - 180;
+  const projected = useMemo(() => {
+    return points.map((p) => {
+      const proj = projection([wrap(p[0]), Math.max(-89, Math.min(89, p[1]))]);
+      if (
+        !proj ||
+        !Number.isFinite(proj[0]) ||
+        !Number.isFinite(proj[1])
+      ) {
+        return null;
+      }
+      return proj;
+    });
+  }, [points, projection]);
+
+  // Build path with breaks on back-hemisphere null points
+  const path = useMemo(() => {
+    const segs: string[] = [];
+    let curr: string[] = [];
+    for (const proj of projected) {
+      if (!proj) {
+        if (curr.length > 1) segs.push(`M${curr.join("L")}`);
+        curr = [];
+        continue;
+      }
+      curr.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+    }
+    if (curr.length > 1) segs.push(`M${curr.join("L")}`);
+    return segs.join(" ");
+  }, [projected]);
+
+  if (!path) return null;
+  return (
+    <g pointerEvents="none">
+      {/* outer glow */}
+      <motion.path
+        d={path}
+        stroke="#fde8b8"
+        strokeOpacity={0.25}
+        strokeWidth={4.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 1.6, ease: "easeInOut" }}
+      />
+      {/* bright core */}
+      <motion.path
+        d={path}
+        stroke="#fff5d8"
+        strokeOpacity={0.95}
+        strokeWidth={1.4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+        initial={{ pathLength: 0 }}
+        animate={{ pathLength: 1 }}
+        transition={{ duration: 1.6, ease: "easeInOut" }}
+      />
+      {/* stars at each vertex, popping in one-by-one */}
+      {projected.map((proj, i) =>
+        proj ? (
+          <motion.g
+            key={i}
+            initial={{ opacity: 0, scale: 0.4 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.35, delay: 0.5 + i * 0.1 }}
+          >
+            <circle
+              cx={proj[0]}
+              cy={proj[1]}
+              r={6}
+              fill="#fde8b8"
+              opacity={0.4}
+            />
+            <circle
+              cx={proj[0]}
+              cy={proj[1]}
+              r={2.6}
+              fill="#ffffff"
+              stroke="#fde8b8"
+              strokeWidth={0.6}
+            />
+          </motion.g>
+        ) : null,
+      )}
+    </g>
+  );
+}
 
 function BackgroundStars({ seed }: { seed: number }) {
   // Deterministic pseudo-random star field — quiet decoration for the night sky
@@ -460,6 +581,7 @@ function ConstellationImpl({
         hoveredCountry={hoveredCountry}
         legsThrough={legsThrough}
         focusedSlug={focusedSlug}
+        traceShape={revealOpen && best ? best.shapeAlignedLonLat : null}
         onCountryEnter={onCountryEnter}
         onCountryClick={onCountryClickInner}
       />
@@ -480,75 +602,81 @@ function ConstellationImpl({
         )}
       </AnimatePresence>
 
-      {/* Reveal toggle in the top-right corner of the orb */}
+      {/* Reveal toggle pinned to the *viewport*, not the orb, so it's
+       *  always visible regardless of where the orb sits. */}
       {best && (
         <button
           type="button"
           onClick={() => setRevealOpen((v) => !v)}
-          className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-amber backdrop-blur transition hover:border-amber/40"
+          className="pointer-events-auto fixed left-1/2 top-24 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/60 px-4 py-1.5 text-[10px] uppercase tracking-[0.28em] text-amber backdrop-blur transition hover:border-amber/40"
         >
-          {revealOpen ? "Hide reveal" : "Which constellation?"}
+          {revealOpen ? "✕ Hide reveal" : "✦ Which constellation?"}
         </button>
       )}
 
+      {/* Reveal panel — fixed to the LEFT edge so the orb stays fully
+       *  visible behind. The matched constellation is also traced live
+       *  on the orb itself (see traceShape prop on ConstellationSVG). */}
       <AnimatePresence>
         {revealOpen && best && (
           <motion.div
-            key="reveal"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            transition={{ duration: 0.24 }}
-            className="absolute left-1/2 top-[60%] z-10 w-[min(520px,90%)] -translate-x-1/2 rounded-md border border-white/15 bg-black/72 p-4 text-paper shadow-2xl backdrop-blur"
+            key="reveal-panel"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -30 }}
+            transition={{ type: "spring", stiffness: 240, damping: 26 }}
+            className="pointer-events-auto fixed left-6 top-1/2 z-40 w-[min(380px,42vw)] max-h-[78vh] -translate-y-1/2 overflow-y-auto rounded-lg border border-white/15 bg-black/82 p-4 text-paper shadow-2xl backdrop-blur"
           >
-            <div className="flex items-center justify-between">
-              <div className="text-[10px] uppercase tracking-[0.3em] text-paper/60">
-                Your trip looks like…
+            <div onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <div className="text-[10px] uppercase tracking-[0.3em] text-paper/60">
+                  Your trip looks like…
+                </div>
+                <div className="text-[10px] uppercase tracking-[0.2em] text-amber">
+                  {best.constellation.zodiac ? "Zodiac" : "Constellation"}
+                </div>
               </div>
-              <div className="text-[10px] uppercase tracking-[0.2em] text-amber">
-                {best.constellation.zodiac ? "Zodiac" : "Constellation"}
+              <div className="mt-1 flex items-baseline justify-between gap-4">
+                <div className="font-display text-2xl text-paper">
+                  {best.constellation.name}
+                </div>
+                <div className="font-mono text-[10px] text-paper/50">
+                  {(best.similarity * 100).toFixed(0)}% match
+                </div>
               </div>
-            </div>
-            <div className="mt-1 flex items-baseline justify-between gap-4">
-              <div className="font-display text-2xl text-paper">
-                {best.constellation.name}
-              </div>
-              <div className="font-mono text-[10px] text-paper/50">
-                {(best.similarity * 100).toFixed(0)}% match
-              </div>
-            </div>
 
-            <MatchDiagram match={best} />
+              <MatchDiagram match={best} />
 
-            <p className="mt-3 text-[12px] leading-snug text-paper/85">
-              {best.constellation.story}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-2 text-[10px] text-paper/55">
-              <span className="uppercase tracking-[0.22em]">Also like</span>
-              {matches.slice(1, 4).map((m) => (
-                <span
-                  key={m.constellation.abbr}
-                  className="uppercase tracking-[0.18em]"
-                >
-                  {m.constellation.name}{" "}
-                  <span className="text-paper/40">
-                    {(m.similarity * 100).toFixed(0)}%
+              <p className="mt-3 text-[12px] leading-snug text-paper/85">
+                {best.constellation.story}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/10 pt-2 text-[10px] text-paper/55">
+                <span className="uppercase tracking-[0.22em]">Also like</span>
+                {matches.slice(1, 4).map((m) => (
+                  <span
+                    key={m.constellation.abbr}
+                    className="uppercase tracking-[0.18em]"
+                  >
+                    {m.constellation.name}{" "}
+                    <span className="text-paper/40">
+                      {(m.similarity * 100).toFixed(0)}%
+                    </span>
                   </span>
+                ))}
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-2 text-[9px] uppercase tracking-[0.22em] text-paper/40">
+                <span>
+                  Matched against {CONSTELLATIONS.length} of the 88 IAU
+                  constellations.
                 </span>
-              ))}
-            </div>
-            <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-2 text-[9px] uppercase tracking-[0.22em] text-paper/40">
-              <span>
-                Matched against {CONSTELLATIONS.length} of the 88 IAU
-                constellations.
-              </span>
-              <button
-                type="button"
-                onClick={() => setRevealOpen(false)}
-                className="text-paper/60 hover:text-amber"
-              >
-                Close
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setRevealOpen(false)}
+                  className="text-paper/60 hover:text-amber"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </motion.div>
         )}

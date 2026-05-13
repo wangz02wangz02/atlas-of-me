@@ -594,6 +594,11 @@ export type Match = {
   /** Constellation shape rotated/reflected to best overlay the journey,
    *  expressed in the same normalized coordinate space as journeyNormFull. */
   shapeAligned: P[];
+  /** Same aligned constellation but un-normalized back into the journey's
+   *  ORIGINAL coordinate space (i.e. unwrapped lon/lat). Lets the orb
+   *  project them through its own projection and trace the matched
+   *  constellation directly onto the visible journey path. */
+  shapeAlignedLonLat: P[];
 };
 
 /**
@@ -605,10 +610,24 @@ export type Match = {
  */
 export function matchConstellation(journeyPoints: P[]): Match[] {
   if (journeyPoints.length < 3) return [];
-  // Normalize the full journey first so both the resampled-for-matching set
-  // AND the journey shown in the overlay diagram live in the same coordinate
-  // space.  This lets us draw the aligned constellation directly on top of
-  // the full journey path with no extra transform.
+  // Centroid + max-radius of the journey in its ORIGINAL (lon/lat) space.
+  // We mirror what normalize() does so we can run the inverse transform
+  // and project the matched constellation back into the same space the
+  // orb uses for its journey path.
+  let cx = 0;
+  let cy = 0;
+  for (const [x, y] of journeyPoints) {
+    cx += x;
+    cy += y;
+  }
+  cx /= journeyPoints.length;
+  cy /= journeyPoints.length;
+  let rmax = 1e-9;
+  for (const [x, y] of journeyPoints) {
+    const r = Math.hypot(x - cx, y - cy);
+    if (r > rmax) rmax = r;
+  }
+
   const journeyNorm = normalize(journeyPoints);
 
   const results: Match[] = CONSTELLATIONS.map((con) => {
@@ -616,12 +635,18 @@ export function matchConstellation(journeyPoints: P[]): Match[] {
     const journeyRes = resamplePolyline(journeyNorm, n);
     const conNorm = normalize(con.shape);
     const { distance, aligned } = bestFitWithAlignment(journeyRes, conNorm);
+    // Inverse-normalize the aligned constellation back to lon/lat space.
+    const shapeAlignedLonLat: P[] = aligned.map(([x, y]) => [
+      x * rmax + cx,
+      y * rmax + cy,
+    ]);
     return {
       constellation: con,
       distance,
       similarity: 1 / (1 + distance),
       journeyNormFull: journeyNorm,
       shapeAligned: aligned,
+      shapeAlignedLonLat,
     };
   });
   results.sort((a, b) => b.similarity - a.similarity);
