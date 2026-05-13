@@ -53,13 +53,19 @@ function isVisible(
 }
 
 /** Draws a curved chronological "constellation" — the projected line
- *  through every visited stop in journey order. */
+ *  through every visited stop in journey order.  We pass `rotate` here so
+ *  we can manually skip back-hemisphere points; on geoOrthographic the
+ *  raw projection function returns finite values everywhere (clipAngle
+ *  only applies inside .stream()), so without this the journey path
+ *  bleeds through to the far side of the orb. */
 function ConstellationLines({
   points,
+  rotate,
   color,
   width,
 }: {
   points: Array<[number, number]>;
+  rotate: [number, number, number];
   color: string;
   width: number;
 }) {
@@ -70,6 +76,11 @@ function ConstellationLines({
     const segs: string[] = [];
     let current: string[] = [];
     for (const p of points) {
+      if (!isVisible(p, rotate)) {
+        if (current.length > 1) segs.push(`M${current.join("L")}`);
+        current = [];
+        continue;
+      }
       const proj = projection(p);
       if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
         if (current.length > 1) segs.push(`M${current.join("L")}`);
@@ -80,7 +91,7 @@ function ConstellationLines({
     }
     if (current.length > 1) segs.push(`M${current.join("L")}`);
     return segs.join(" ");
-  }, [points, projection]);
+  }, [points, projection, rotate]);
   if (!segments) return null;
   return (
     <path
@@ -205,8 +216,18 @@ const ConstellationSVG = memo(function ConstellationSVG({
       {/* Constellation lines through visited places in journey order */}
       {linePoints.length > 1 && (
         <g pointerEvents="none">
-          <ConstellationLines points={linePoints} color="rgba(253, 232, 184, 0.08)" width={2.4} />
-          <ConstellationLines points={linePoints} color="rgba(253, 232, 184, 0.55)" width={0.6} />
+          <ConstellationLines
+            points={linePoints}
+            rotate={rotate}
+            color="rgba(253, 232, 184, 0.08)"
+            width={2.4}
+          />
+          <ConstellationLines
+            points={linePoints}
+            rotate={rotate}
+            color="rgba(253, 232, 184, 0.55)"
+            width={0.6}
+          />
         </g>
       )}
 
@@ -260,9 +281,10 @@ const ConstellationSVG = memo(function ConstellationSVG({
       {/* Matched constellation trace — bright cream lines + stars
        *  rendered through the same orthographic projection as the
        *  journey, so the user can see the resemblance directly on the
-       *  orb. */}
+       *  orb. Receives `rotate` so we can manually clip to the front
+       *  hemisphere. */}
       {traceShape && traceShape.length > 1 && (
-        <MatchedConstellationOverlay points={traceShape} />
+        <MatchedConstellationOverlay points={traceShape} rotate={rotate} />
       )}
 
       {/* Focused stop pulse */}
@@ -294,8 +316,10 @@ const ConstellationSVG = memo(function ConstellationSVG({
  */
 function MatchedConstellationOverlay({
   points,
+  rotate,
 }: {
   points: [number, number][];
+  rotate: [number, number, number];
 }) {
   const { projection } = useMapContext() as {
     projection: (c: [number, number]) => [number, number] | null;
@@ -304,7 +328,13 @@ function MatchedConstellationOverlay({
     ((((lon + 180) % 360) + 360) % 360) - 180;
   const projected = useMemo(() => {
     return points.map((p) => {
-      const proj = projection([wrap(p[0]), Math.max(-89, Math.min(89, p[1]))]);
+      const lon = wrap(p[0]);
+      const lat = Math.max(-89, Math.min(89, p[1]));
+      // Back-hemisphere check — raw projection() returns finite values for
+      // points behind the orb, so without this filter the constellation
+      // trace bleeds through to the far side.
+      if (!isVisible([lon, lat], rotate)) return null;
+      const proj = projection([lon, lat]);
       if (
         !proj ||
         !Number.isFinite(proj[0]) ||
@@ -314,7 +344,7 @@ function MatchedConstellationOverlay({
       }
       return proj;
     });
-  }, [points, projection]);
+  }, [points, projection, rotate]);
 
   // Build path with breaks on back-hemisphere null points
   const path = useMemo(() => {
