@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { motion } from "motion/react";
+import { useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 
 type Props = {
   /** Memories palette = deeper, more midnight. Globe palette = slightly
@@ -12,6 +12,10 @@ type Props = {
    *  the camera through the universe.  Stars move least, planets a bit
    *  more, Earth at full speed (handled by Globe itself). */
   cameraOffset?: { x: number; y: number };
+  /** Slug of the body the user currently has at center (instead of Earth).
+   *  null = Earth-centered as usual. */
+  focalBody?: string | null;
+  onFocusBody?: (slug: string | null) => void;
 };
 
 type Star = {
@@ -28,6 +32,8 @@ type Star = {
 };
 
 type Body = {
+  /** Stable identifier used by the focal-body system. */
+  slug: string;
   kind: "planet" | "moon" | "sun" | "mars";
   x: number;
   y: number;
@@ -77,6 +83,8 @@ const STAR_COUNT = 620;
 export default function UniverseBackdrop({
   palette = "globe",
   cameraOffset = { x: 0, y: 0 },
+  focalBody = null,
+  onFocusBody,
 }: Props) {
   const colors = PALETTES[palette];
 
@@ -138,8 +146,8 @@ export default function UniverseBackdrop({
 
   const bodies: Body[] = useMemo(
     () => [
-      // The Sun — top-right corner, big warm disk with a corona.
       {
+        slug: "sun",
         kind: "sun",
         x: 88,
         y: 16,
@@ -149,8 +157,8 @@ export default function UniverseBackdrop({
         hueDeep: "#ff8a3a",
         label: "Sol",
       },
-      // The Moon — lower-left, smaller pale disk with subtle crater shading.
       {
+        slug: "moon",
         kind: "moon",
         x: 12,
         y: 78,
@@ -160,9 +168,8 @@ export default function UniverseBackdrop({
         hueDeep: "#8e8a82",
         label: "Luna",
       },
-      // Mars — middle-right, smaller rust disk. Pinned as a "future
-      // destination" so it threads through to the predict panel.
       {
+        slug: "mars",
         kind: "mars",
         x: 76,
         y: 62,
@@ -173,8 +180,8 @@ export default function UniverseBackdrop({
         label: "Mars",
         sublabel: "future destination",
       },
-      // One ringed gas-giant-ish planet for variety, far upper-left.
       {
+        slug: "neith",
         kind: "planet",
         x: 18,
         y: 26,
@@ -183,6 +190,7 @@ export default function UniverseBackdrop({
         hue: palette === "memories" ? "#7e6cb0" : "#8c78b8",
         ring: true,
         ringTilt: -20,
+        label: "Neith",
       },
     ],
     [palette],
@@ -221,30 +229,19 @@ export default function UniverseBackdrop({
         }}
       />
 
-      {/* Celestial bodies — drift slowly on their own AND parallax with the
-       *  camera offset so the whole scene moves coherently. */}
+      {/* Celestial bodies — clickable / draggable. Click animates the body
+       *  to viewport center (focal swap). Press-and-drag follows the
+       *  cursor; releasing within ~120px of center also snaps it focal. */}
       {bodies.map((p, i) => (
-        <motion.div
-          key={i}
-          className="absolute"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.r * 2,
-            height: p.r * 2,
-            marginLeft: -p.r + planetShiftX,
-            marginTop: -p.r + planetShiftY,
-            opacity: p.kind === "sun" ? 0.65 : 0.42,
-          }}
-          animate={{
-            x: [0, 12, 0, -12, 0],
-            y: [0, -6, 0, 6, 0],
-          }}
-          transition={{
-            duration: p.driftSec,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
+        <CelestialBody
+          key={p.slug}
+          body={p}
+          index={i}
+          palette={palette}
+          planetShiftX={planetShiftX}
+          planetShiftY={planetShiftY}
+          focal={focalBody === p.slug}
+          onFocus={() => onFocusBody?.(p.slug)}
         >
           <svg
             viewBox={`-${p.r * 1.6} -${p.r * 1.6} ${p.r * 3.2} ${p.r * 3.2}`}
@@ -376,7 +373,7 @@ export default function UniverseBackdrop({
               </g>
             )}
           </svg>
-        </motion.div>
+        </CelestialBody>
       ))}
 
       {/* Starfield — drifts at the smallest parallax fraction (effectively
@@ -465,3 +462,160 @@ export default function UniverseBackdrop({
     </div>
   );
 }
+
+/**
+ * Interactive celestial body. Renders the body's SVG (passed as children)
+ * at the right viewport position, with two interactions:
+ *
+ *  - Click: animate the body to the viewport's center (focal swap).
+ *  - Press + drag: the body follows the cursor in real time. On release,
+ *    if the cursor is within ~120px of the viewport center, the body
+ *    snaps focal; otherwise it snaps back to its base position.
+ *
+ * Drift animation (the slow elliptical idle motion) is suspended while
+ * the user is dragging or while the body is focal.
+ */
+function CelestialBody({
+  body,
+  index,
+  planetShiftX,
+  planetShiftY,
+  focal,
+  onFocus,
+  children,
+}: {
+  body: Body;
+  index: number;
+  palette: NonNullable<Props["palette"]>;
+  planetShiftX: number;
+  planetShiftY: number;
+  focal: boolean;
+  onFocus: () => void;
+  children: React.ReactNode;
+}) {
+  const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(
+    null,
+  );
+  const downRef = useRef<{
+    x: number;
+    y: number;
+    t: number;
+    moved: boolean;
+  } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    e.stopPropagation();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    downRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      t: performance.now(),
+      moved: false,
+    };
+  };
+
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!downRef.current) return;
+    const d = downRef.current;
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    if (!d.moved && Math.hypot(dx, dy) > 6) d.moved = true;
+    if (d.moved) {
+      setDragPos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = downRef.current;
+    downRef.current = null;
+    if (!d) return;
+    const elapsed = performance.now() - d.t;
+    if (!d.moved && elapsed < 500) {
+      // Treated as a click — focus the body
+      onFocus();
+      setDragPos(null);
+      return;
+    }
+    // Dragged release — focus if dropped near center, else snap back
+    if (typeof window !== "undefined") {
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const releaseDist = Math.hypot(e.clientX - cx, e.clientY - cy);
+      if (releaseDist < 140) {
+        onFocus();
+      }
+    }
+    setDragPos(null);
+  };
+
+  const onPointerCancel = () => {
+    downRef.current = null;
+    setDragPos(null);
+  };
+
+  // Compute current display position. Priority: focal > drag > base+parallax.
+  let renderStyle: React.CSSProperties;
+  if (focal) {
+    renderStyle = {
+      left: "50%",
+      top: "50%",
+      width: body.r * 3,
+      height: body.r * 3,
+      marginLeft: -body.r * 1.5,
+      marginTop: -body.r * 1.5,
+      opacity: 0.95,
+      transition: "left 600ms ease, top 600ms ease, width 600ms, height 600ms",
+      cursor: "pointer",
+    };
+  } else if (dragPos) {
+    renderStyle = {
+      left: dragPos.x,
+      top: dragPos.y,
+      width: body.r * 2,
+      height: body.r * 2,
+      marginLeft: -body.r,
+      marginTop: -body.r,
+      opacity: 0.85,
+      cursor: "grabbing",
+    };
+  } else {
+    renderStyle = {
+      left: `${body.x}%`,
+      top: `${body.y}%`,
+      width: body.r * 2,
+      height: body.r * 2,
+      marginLeft: -body.r + planetShiftX,
+      marginTop: -body.r + planetShiftY,
+      opacity: body.kind === "sun" ? 0.65 : 0.5,
+      transition: "left 220ms ease, top 220ms ease, opacity 220ms",
+      cursor: "pointer",
+    };
+  }
+
+  return (
+    <motion.div
+      className="pointer-events-auto absolute"
+      style={renderStyle}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      animate={
+        focal || dragPos
+          ? { x: 0, y: 0 }
+          : { x: [0, 12, 0, -12, 0], y: [0, -6, 0, 6, 0] }
+      }
+      transition={
+        focal || dragPos
+          ? { duration: 0.3 }
+          : { duration: body.driftSec, repeat: Infinity, ease: "easeInOut" }
+      }
+      title={body.label ? `${body.label} — click to focus` : undefined}
+    >
+      {children}
+      {/* Suppress the index unused warning */}
+      <span style={{ display: "none" }}>{index}</span>
+    </motion.div>
+  );
+}
+

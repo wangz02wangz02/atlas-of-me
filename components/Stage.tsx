@@ -48,6 +48,8 @@ export default function Stage({ places }: { places: Place[] }) {
   // Toggle for the Where-Next overlay (formerly in the right hover drawer).
   const [wheresNextOpen, setWheresNextOpen] = useState(false);
   const [activitiesOpen, setActivitiesOpen] = useState(false);
+  // Which celestial body the user has pulled to center. Null = Earth-centered.
+  const [focalBody, setFocalBody] = useState<string | null>(null);
   const overlayScrollRef = useRef<HTMLDivElement>(null);
 
   const placesByCountry = useMemo(() => {
@@ -118,6 +120,7 @@ export default function Stage({ places }: { places: Place[] }) {
       setZoom(CONTINENT_VIEW.All.zoom);
     }
     setCameraOffset({ x: 0, y: 0 });
+    setFocalBody(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
@@ -244,6 +247,8 @@ export default function Stage({ places }: { places: Place[] }) {
             <UniverseBackdrop
               palette={view === "memories" ? "memories" : "globe"}
               cameraOffset={cameraOffset}
+              focalBody={focalBody}
+              onFocusBody={setFocalBody}
             />
           </motion.div>
         )}
@@ -264,9 +269,17 @@ export default function Stage({ places }: { places: Place[] }) {
             <motion.div
               key="globe"
               initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
+              animate={{
+                // Earth steps aside when the user has pulled another body
+                // to focus — fades and shrinks toward the upper-left so
+                // it's still visible but no longer the subject.
+                opacity: focalBody ? 0.22 : 1,
+                scale: focalBody ? 0.35 : 1,
+                x: focalBody ? "-32vw" : 0,
+                y: focalBody ? "-26vh" : 0,
+              }}
               exit={{ opacity: 0, scale: 0.98 }}
-              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               className="w-[min(72vmin,900px)]"
             >
               <Globe
@@ -355,7 +368,26 @@ export default function Stage({ places }: { places: Place[] }) {
 
       {/* Tiny hint about the globe's drag behavior — fades out after 8s.
        *  Keeps it discoverable without permanent UI clutter. */}
-      {view === "globe" && <GlobeHint />}
+      {view === "globe" && !focalBody && <GlobeHint />}
+
+      {/* Back-to-Earth pill — only shown when the user has pulled
+       *  another body to center. */}
+      <AnimatePresence>
+        {focalBody && (
+          <motion.button
+            key="back-to-earth"
+            type="button"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.3 }}
+            onClick={() => setFocalBody(null)}
+            className="pointer-events-auto fixed left-1/2 top-24 z-40 -translate-x-1/2 rounded-full border border-white/20 bg-black/55 px-4 py-1.5 text-[10px] uppercase tracking-[0.28em] text-paper/85 backdrop-blur transition hover:border-amber hover:text-amber"
+          >
+            ← Back to Earth
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Flat-only zoom controls */}
       {view === "flat" && (
