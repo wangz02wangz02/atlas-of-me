@@ -317,6 +317,10 @@ export default function Stage({ places }: { places: Place[] }) {
         </AnimatePresence>
       </motion.div>
 
+      {/* Tiny hint about the globe's drag behavior — fades out after 8s.
+       *  Keeps it discoverable without permanent UI clutter. */}
+      {view === "globe" && <GlobeHint />}
+
       {/* Flat-only zoom controls */}
       {view === "flat" && (
         <div className="pointer-events-auto fixed right-6 top-24 z-30 flex flex-col gap-1">
@@ -432,6 +436,29 @@ export default function Stage({ places }: { places: Place[] }) {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+function GlobeHint() {
+  const [visible, setVisible] = useState(true);
+  useEffect(() => {
+    const id = window.setTimeout(() => setVisible(false), 9000);
+    return () => window.clearTimeout(id);
+  }, []);
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.5 }}
+          className="pointer-events-none fixed left-1/2 top-[88px] z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-paper/70 backdrop-blur"
+        >
+          drag&nbsp;to&nbsp;move · shift+drag&nbsp;to&nbsp;rotate · scroll&nbsp;to&nbsp;zoom · dbl&minus;click&nbsp;to&nbsp;recenter
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

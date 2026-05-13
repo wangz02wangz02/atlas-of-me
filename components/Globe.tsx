@@ -699,9 +699,11 @@ function GlobeImpl({
     dragging.current = true;
     lastPointer.current = { x: e.clientX, y: e.clientY };
     (e.target as Element).setPointerCapture?.(e.pointerId);
-    // Shift, right-click, or middle-click → translate. Otherwise rotate.
+    // Plain drag = TRANSLATE the globe across the universe (what the user
+    // asked for: "drag the globe entirely in this universe"). Hold Shift,
+    // or use middle/right button, to rotate the globe's surface instead.
     dragMode.current =
-      e.shiftKey || e.button === 1 || e.button === 2 ? "translate" : "rotate";
+      e.shiftKey || e.button === 1 || e.button === 2 ? "rotate" : "translate";
     interactingAt.current = performance.now();
   };
   const onPointerMove = (e: React.PointerEvent) => {
