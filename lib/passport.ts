@@ -93,16 +93,29 @@ export type PassportPage = {
   stop: number;
   date: Date;
   city: City;
+  /** Elevation in meters above sea level. Loaded server-side from
+   *  data/altitudes.json (Open-Elevation). May be undefined for cities
+   *  that weren't found. */
+  altitude?: number;
 };
 
 /** One page per stop, chronologically. */
-export function getPassportPages(): PassportPage[] {
+export function getPassportPages(
+  altitudes?: Record<string, number>,
+): PassportPage[] {
   const seq: string[] = [LEGS[0].from, ...LEGS.map((l) => l.to)];
   return seq
-    .map((slug, i) => {
+    .map((slug, i): PassportPage | null => {
       const city = CITIES[slug];
       if (!city) return null;
-      return { stop: i + 1, date: dateForStop(i + 1), city };
+      const alt = altitudes?.[slug];
+      const page: PassportPage = {
+        stop: i + 1,
+        date: dateForStop(i + 1),
+        city,
+      };
+      if (typeof alt === "number") page.altitude = alt;
+      return page;
     })
     .filter((x): x is PassportPage => x !== null);
 }

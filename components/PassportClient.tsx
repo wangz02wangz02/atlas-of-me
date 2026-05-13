@@ -21,6 +21,7 @@ type Page = {
   countryCode: string;
   tagline: string;
   photo: { src: string; alt: string } | null;
+  altitude?: number;
 };
 
 type Props = {
@@ -202,6 +203,17 @@ export default function PassportClient({ stamps, pages }: Props) {
         </div>
       </section>
 
+      {/* Altitude profile — line chart of elevation over the journey */}
+      <section className="passport-page mx-auto max-w-4xl px-8 pb-16">
+        <div className="mb-6 flex items-baseline justify-between">
+          <div className="font-display text-2xl text-ink">Altitude profile</div>
+          <div className="text-[10px] uppercase tracking-[0.3em] text-ink-faint">
+            meters above sea level
+          </div>
+        </div>
+        <AltitudeChart pages={pages} />
+      </section>
+
       {/* Per-city pages */}
       <section className="passport-page mx-auto max-w-4xl px-8 pb-24">
         <div className="mb-6 flex items-baseline justify-between">
@@ -290,6 +302,178 @@ export default function PassportClient({ stamps, pages }: Props) {
           margin: 14mm;
         }
       `}</style>
+    </div>
+  );
+}
+
+function AltitudeChart({ pages }: { pages: Page[] }) {
+  const valid = pages.filter((p) => typeof p.altitude === "number");
+  if (valid.length < 2) {
+    return (
+      <div className="rounded-md border border-paper-3 bg-paper-2/40 p-6 text-center text-[11px] italic text-ink-faint">
+        No altitude data available.
+      </div>
+    );
+  }
+  const W = 900;
+  const H = 240;
+  const padX = 28;
+  const padY = 22;
+  const altitudes = pages.map((p) =>
+    typeof p.altitude === "number" ? p.altitude : 0,
+  );
+  const maxA = Math.max(20, ...altitudes);
+  const minA = Math.min(0, ...altitudes);
+  const range = Math.max(1, maxA - minA);
+  const n = pages.length;
+
+  const x = (i: number) => padX + (i / Math.max(1, n - 1)) * (W - padX * 2);
+  const y = (alt: number) =>
+    H - padY - ((alt - minA) / range) * (H - padY * 2);
+
+  // Build polyline
+  const points = pages.map((p, i) => [
+    x(i),
+    y(typeof p.altitude === "number" ? p.altitude : 0),
+  ]);
+  const pathLine = points
+    .map((pt, i) => `${i === 0 ? "M" : "L"}${pt[0].toFixed(1)},${pt[1].toFixed(1)}`)
+    .join(" ");
+  // Area underneath (filled)
+  const pathArea =
+    pathLine +
+    ` L${points[points.length - 1][0].toFixed(1)},${H - padY} ` +
+    ` L${points[0][0].toFixed(1)},${H - padY} Z`;
+
+  // Five y-axis tick lines
+  const yTicks = 4;
+  const tickValues = Array.from({ length: yTicks + 1 }, (_, i) =>
+    Math.round(minA + (i / yTicks) * range),
+  );
+
+  // Highest point gets a label callout
+  let maxIdx = 0;
+  for (let i = 1; i < altitudes.length; i++)
+    if (altitudes[i] > altitudes[maxIdx]) maxIdx = i;
+  const maxCity = pages[maxIdx];
+
+  return (
+    <div className="rounded-md border border-paper-3 bg-paper-2/40 p-4">
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="block">
+        <defs>
+          <linearGradient id="alt-fill" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor="#b6803a" stopOpacity={0.32} />
+            <stop offset="100%" stopColor="#b6803a" stopOpacity={0.03} />
+          </linearGradient>
+        </defs>
+
+        {/* y-axis grid */}
+        {tickValues.map((v, i) => {
+          const yy = y(v);
+          return (
+            <g key={i}>
+              <line
+                x1={padX}
+                y1={yy}
+                x2={W - padX}
+                y2={yy}
+                stroke="rgba(122,94,52,0.15)"
+                strokeWidth={0.5}
+                strokeDasharray={i === 0 ? undefined : "2 3"}
+              />
+              <text
+                x={padX - 4}
+                y={yy + 3}
+                textAnchor="end"
+                fontFamily="ui-monospace, monospace"
+                fontSize={9}
+                fill="#8a8578"
+              >
+                {v}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* x-axis stop ticks every 10 stops */}
+        {pages
+          .filter((_, i) => i % 10 === 0)
+          .map((p) => {
+            const i = p.stop - 1;
+            return (
+              <g key={p.stop}>
+                <line
+                  x1={x(i)}
+                  y1={H - padY}
+                  x2={x(i)}
+                  y2={H - padY + 3}
+                  stroke="rgba(122,94,52,0.4)"
+                  strokeWidth={0.6}
+                />
+                <text
+                  x={x(i)}
+                  y={H - padY + 14}
+                  textAnchor="middle"
+                  fontFamily="ui-monospace, monospace"
+                  fontSize={9}
+                  fill="#8a8578"
+                >
+                  {p.stop}
+                </text>
+              </g>
+            );
+          })}
+
+        {/* Area */}
+        <path d={pathArea} fill="url(#alt-fill)" />
+        {/* Line */}
+        <path
+          d={pathLine}
+          fill="none"
+          stroke="#9a4a28"
+          strokeWidth={1.4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Highest-point callout */}
+        {maxCity && (
+          <g>
+            <circle
+              cx={x(maxIdx)}
+              cy={y(altitudes[maxIdx])}
+              r={3.5}
+              fill="#fff"
+              stroke="#9a4a28"
+              strokeWidth={1.2}
+            />
+            <line
+              x1={x(maxIdx)}
+              y1={y(altitudes[maxIdx]) - 4}
+              x2={x(maxIdx)}
+              y2={y(altitudes[maxIdx]) - 18}
+              stroke="rgba(154,74,40,0.5)"
+              strokeWidth={0.6}
+            />
+            <text
+              x={x(maxIdx)}
+              y={y(altitudes[maxIdx]) - 22}
+              textAnchor="middle"
+              fontFamily="ui-monospace, monospace"
+              fontSize={10}
+              fill="#9a4a28"
+            >
+              {maxCity.name} · {altitudes[maxIdx]} m
+            </text>
+          </g>
+        )}
+      </svg>
+      <div className="mt-2 flex items-center justify-between text-[10px] uppercase tracking-[0.22em] text-ink-faint">
+        <span>stop number →</span>
+        <span>
+          highest: {altitudes[maxIdx]} m at {maxCity?.name}
+        </span>
+      </div>
     </div>
   );
 }
