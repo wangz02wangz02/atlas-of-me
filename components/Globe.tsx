@@ -198,7 +198,7 @@ const GlobeSVG = memo(function GlobeSVG({
       projectionConfig={{ scale: projectionScale, rotate }}
       width={size}
       height={size}
-      style={{ width: "100%", height: "100%" }}
+      style={{ width: "100%", height: "100%", overflow: "visible" }}
     >
       <defs>
         {/* Vintage globe ocean — deep aged-ink teal at the limb, easing to
@@ -805,10 +805,11 @@ function GlobeImpl({
     const handler = (e: WheelEvent) => {
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
-      // Min 0.35 so the user can pull back and see lots of universe around
-      // the globe; max 4 because past that the orthographic crop becomes
-      // a flat disk and the sphere no longer reads as a sphere.
-      setZoom((z) => Math.max(0.35, Math.min(4, z * factor)));
+      // Min 0.35 so the user can pull back and see lots of universe; max 12
+      // so the sphere can grow huge and fill (and overflow) the viewport.
+      // Removing the wrapper clip lets the sphere actually expand visually
+      // past its original circular bounds.
+      setZoom((z) => Math.max(0.35, Math.min(12, z * factor)));
       interactingAt.current = performance.now();
     };
     el.addEventListener("wheel", handler, { passive: false });
@@ -869,8 +870,12 @@ function GlobeImpl({
         }}
       />
 
-      {/* Clip the SVG to a circle so zoomed-in content never reads as a square */}
-      <div className="absolute inset-0 overflow-hidden rounded-full">
+      {/* No clip — let the sphere grow beyond its CSS box as the user
+       *  zooms in, so the planet actually fills the universe rather than
+       *  staying within a fixed circular hole. The Sphere component itself
+       *  always renders a clean circular outline at any zoom, so there's
+       *  no square-corner artifact. */}
+      <div className="absolute inset-0">
       <GlobeSVG
         places={places}
         rotate={rotate}
