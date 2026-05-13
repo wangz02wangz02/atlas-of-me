@@ -48,7 +48,7 @@ export default function JourneyFilmstrip({
   // settles on a stop for the dwell duration, or clicks, does the
   // parent receive the change.
   const [previewStop, setPreviewStop] = useState<number | null>(null);
-  const DWELL_MS = 700;
+  const DWELL_MS = 350;
 
   const total = stops.length;
   // value is 1..total; if user hasn't scrubbed (value > total) we just clamp.
@@ -143,7 +143,7 @@ export default function JourneyFilmstrip({
       }}
     >
       <div
-        className={`pointer-events-auto flex w-[min(86vw,640px)] flex-col items-stretch gap-1 rounded-full border px-5 py-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.12)] backdrop-blur-md ${c.wrap}`}
+        className={`pointer-events-auto flex w-[min(86vw,680px)] flex-col items-stretch gap-1.5 rounded-full border px-5 py-3 shadow-[0_14px_44px_rgba(0,0,0,0.18)] backdrop-blur-md ${c.wrap}`}
       >
         {/* Caption row */}
         <div className="flex items-baseline justify-between text-[10px] uppercase tracking-[0.28em]">
@@ -169,57 +169,56 @@ export default function JourneyFilmstrip({
           </span>
         </div>
 
-        {/* Track */}
+        {/* Track. Hairline rail underneath, glowing progress fill, and a
+         *  row of subtly star-shaped marks per stop — feels more like a
+         *  thread through the night sky than a bar of bars. */}
         <div
           ref={ref}
           onMouseMove={onMove}
           onClick={onClick}
-          className="relative h-5 cursor-pointer select-none"
+          className="relative h-6 cursor-pointer select-none"
           aria-label="Journey scrubber"
         >
-          {/* Empty track */}
+          {/* Empty rail */}
           <div
-            className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full"
+            className="absolute left-0 right-0 top-1/2 h-[1px] -translate-y-1/2 rounded-full"
             style={{ background: c.track }}
           />
-          {/* Filled track */}
+          {/* Soft glow under the filled rail so the progress reads as lit */}
+          <div
+            className="absolute left-0 top-1/2 h-[6px] -translate-y-1/2 rounded-full transition-[width] duration-200"
+            style={{
+              width: `${progressPct}%`,
+              background: dark
+                ? "linear-gradient(90deg, rgba(253,232,184,0) 0%, rgba(253,232,184,0.18) 60%, rgba(253,232,184,0.32) 100%)"
+                : "linear-gradient(90deg, rgba(182,128,58,0) 0%, rgba(182,128,58,0.18) 60%, rgba(154,74,40,0.32) 100%)",
+              filter: "blur(2px)",
+            }}
+          />
+          {/* Crisp filled rail */}
           <div
             className="absolute left-0 top-1/2 h-[2px] -translate-y-1/2 rounded-full transition-[width] duration-200"
             style={{ width: `${progressPct}%`, background: c.fill }}
           />
 
-          {/* Dot per stop — purely decorative; the whole row is clickable.
-           *  Committed stop = large amber dot. Preview stop (cursor position
-           *  before dwell commits) = medium pulsing dot — a hint that the
-           *  globe will rotate here if you stay. */}
+          {/* Star marks. Each stop is a small SVG plus glyph — tiny pinprick
+           *  by default, brighter 4-point star at the preview stop, large
+           *  glowing star at the committed stop. */}
           <div className="absolute inset-0 flex items-center justify-between">
             {stops.map(({ stop }) => {
               const isCommitted = stop === clamped;
               const isPreview =
                 previewStop !== null && stop === previewStop && !isCommitted;
-              const size = isCommitted ? 8 : isPreview ? 5 : 2.6;
               return (
-                <span
+                <StarMark
                   key={stop}
-                  className="block rounded-full transition-all"
-                  style={{
-                    width: size,
-                    height: size,
-                    background: isCommitted
-                      ? c.active
-                      : isPreview
-                        ? c.fill
-                        : c.tick,
-                    boxShadow: isCommitted
-                      ? dark
-                        ? "0 0 10px rgba(253,232,184,0.6)"
-                        : "0 0 8px rgba(182,128,58,0.5)"
-                      : isPreview
-                        ? dark
-                          ? "0 0 6px rgba(253,232,184,0.4)"
-                          : "0 0 4px rgba(182,128,58,0.35)"
-                        : undefined,
-                  }}
+                  state={
+                    isCommitted ? "committed" : isPreview ? "preview" : "idle"
+                  }
+                  dark={dark}
+                  activeColor={c.active}
+                  fillColor={c.fill}
+                  tickColor={c.tick}
                 />
               );
             })}
@@ -227,5 +226,64 @@ export default function JourneyFilmstrip({
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function StarMark({
+  state,
+  dark,
+  activeColor,
+  fillColor,
+  tickColor,
+}: {
+  state: "idle" | "preview" | "committed";
+  dark: boolean;
+  activeColor: string;
+  fillColor: string;
+  tickColor: string;
+}) {
+  // Sizes per state
+  const size = state === "committed" ? 13 : state === "preview" ? 9 : 4;
+  const color =
+    state === "committed" ? activeColor : state === "preview" ? fillColor : tickColor;
+  const glow =
+    state === "committed"
+      ? dark
+        ? "0 0 12px rgba(253,232,184,0.75), 0 0 4px rgba(255,255,255,0.5)"
+        : "0 0 10px rgba(182,128,58,0.55)"
+      : state === "preview"
+        ? dark
+          ? "0 0 8px rgba(253,232,184,0.45)"
+          : "0 0 6px rgba(182,128,58,0.4)"
+        : "none";
+  return (
+    <span
+      className="grid place-items-center transition-all"
+      style={{ width: size + 2, height: size + 2 }}
+    >
+      {state === "idle" ? (
+        // tiny pinprick — just a dot
+        <span
+          className="block rounded-full"
+          style={{ width: size, height: size, background: color }}
+        />
+      ) : (
+        // 4-point star for preview & committed
+        <svg
+          width={size}
+          height={size}
+          viewBox="-5 -5 10 10"
+          style={{ filter: glow ? `drop-shadow(${glow})` : undefined }}
+        >
+          <path
+            d="M 0 -5 L 1.1 -1.1 L 5 0 L 1.1 1.1 L 0 5 L -1.1 1.1 L -5 0 L -1.1 -1.1 Z"
+            fill={color}
+          />
+          {state === "committed" && (
+            <circle r={1.3} fill="#ffffff" />
+          )}
+        </svg>
+      )}
+    </span>
   );
 }

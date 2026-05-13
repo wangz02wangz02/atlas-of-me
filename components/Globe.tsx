@@ -744,11 +744,12 @@ function GlobeImpl({
     dragging.current = true;
     lastPointer.current = { x: e.clientX, y: e.clientY };
     (e.target as Element).setPointerCapture?.(e.pointerId);
-    // Plain drag = TRANSLATE the globe across the universe (what the user
-    // asked for: "drag the globe entirely in this universe"). Hold Shift,
-    // or use middle/right button, to rotate the globe's surface instead.
+    // Plain drag = ROTATE the globe surface (the natural exploration
+    // gesture). Hold Shift (or use middle/right button) to fly the camera
+    // through the universe — that's the parallax movement of the whole
+    // scene including the background planets.
     dragMode.current =
-      e.shiftKey || e.button === 1 || e.button === 2 ? "rotate" : "translate";
+      e.shiftKey || e.button === 1 || e.button === 2 ? "translate" : "rotate";
     interactingAt.current = performance.now();
   };
   const onPointerMove = (e: React.PointerEvent) => {

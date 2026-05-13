@@ -14,6 +14,7 @@ import NextDestinations from "./NextDestinations";
 import PlaceDetailClient from "./PlaceDetailClient";
 import UniverseBackdrop from "./UniverseBackdrop";
 import ActivitiesPanel from "./ActivitiesPanel";
+import AmbientPlayer from "./AmbientPlayer";
 import { LEGS, CITIES, CONTINENT_VIEW } from "@/lib/places";
 import type { Place } from "@/lib/places-types";
 
@@ -224,6 +225,9 @@ export default function Stage({ places }: { places: Place[] }) {
 
       <HoveredPlaceCard place={hoveredPlace} />
 
+      {/* Ambient music toggle — top-right speaker pill. Default off. */}
+      <AmbientPlayer />
+
       {/* Universe backdrop for Globe and Memories views — rendered BEFORE
        *  the stage in DOM order AND with a low z-index so it stays beneath
        *  the focal orb. (Previously this rendered after the stage and was
@@ -272,7 +276,21 @@ export default function Stage({ places }: { places: Place[] }) {
                 size={900}
                 sparkle={randomSpinning}
                 cameraOffset={cameraOffset}
-                onCameraChange={setCameraOffset}
+                onCameraChange={(next) => {
+                  // Clamp so the Earth never gets dragged fully off
+                  // screen. Keep the orb's center within ~viewport/2 of
+                  // the natural center on each axis.
+                  if (typeof window === "undefined") {
+                    setCameraOffset(next);
+                    return;
+                  }
+                  const limX = window.innerWidth * 0.45;
+                  const limY = window.innerHeight * 0.45;
+                  setCameraOffset({
+                    x: Math.max(-limX, Math.min(limX, next.x)),
+                    y: Math.max(-limY, Math.min(limY, next.y)),
+                  });
+                }}
                 placeSlugs={placeSlugs}
                 showRoute={layers.trail}
                 showTerminator={layers.dayNight}
@@ -534,7 +552,7 @@ function GlobeHint() {
           transition={{ duration: 0.5 }}
           className="pointer-events-none fixed left-1/2 top-[88px] z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-paper/70 backdrop-blur"
         >
-          drag&nbsp;to&nbsp;fly&nbsp;the&nbsp;camera · shift+drag&nbsp;to&nbsp;rotate&nbsp;Earth · scroll&nbsp;to&nbsp;zoom · dbl&minus;click&nbsp;to&nbsp;recenter
+          drag&nbsp;to&nbsp;rotate&nbsp;Earth · shift+drag&nbsp;to&nbsp;fly&nbsp;the&nbsp;camera · scroll&nbsp;to&nbsp;zoom · dbl&minus;click&nbsp;to&nbsp;recenter
         </motion.div>
       )}
     </AnimatePresence>
