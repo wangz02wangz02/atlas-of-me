@@ -196,39 +196,41 @@ const GlobeSVG = memo(function GlobeSVG({
       style={{ width: "100%", height: "100%" }}
     >
       <defs>
-        {/* Realistic Earth ocean — deep navy at the limb, brighter Atlantic
-         *  blue toward the highlighted face, with a subtle atmospheric rim. */}
-        <radialGradient id="ocean" cx="36%" cy="32%" r="74%">
-          <stop offset="0%" stopColor="#3d6da3" />
-          <stop offset="45%" stopColor="#1f4374" />
-          <stop offset="78%" stopColor="#0e2447" />
-          <stop offset="100%" stopColor="#06122a" />
+        {/* Vintage globe ocean — deep aged-ink teal at the limb, easing to
+         *  a warm slate at the highlighted face. Matches the project's
+         *  warm paper aesthetic but with real depth so it doesn't read
+         *  flat. */}
+        <radialGradient id="ocean" cx="36%" cy="32%" r="76%">
+          <stop offset="0%" stopColor="#4b6878" />
+          <stop offset="48%" stopColor="#2c4858" />
+          <stop offset="82%" stopColor="#152633" />
+          <stop offset="100%" stopColor="#0a1620" />
         </radialGradient>
-        {/* Land — vegetation green at the highlight, drying to sandy umber
-         *  in the shadowed bands. Looks like satellite-photo continents. */}
+        {/* Land — sun-aged parchment, brighter on the lit face and
+         *  deepening to warm umber in the shadowed band. */}
         <linearGradient id="land" x1="0.3" x2="0.7" y1="0" y2="1">
-          <stop offset="0%" stopColor="#8fae5f" />
-          <stop offset="55%" stopColor="#6e8a45" />
-          <stop offset="100%" stopColor="#4b5d2e" />
+          <stop offset="0%" stopColor="#e6cb95" />
+          <stop offset="55%" stopColor="#b9905c" />
+          <stop offset="100%" stopColor="#7d5d33" />
         </linearGradient>
-        {/* Hover highlight — same family but brighter so it still pops. */}
+        {/* Hover highlight — same family but lifted. */}
         <linearGradient id="land-highlight" x1="0.3" x2="0.7" y1="0" y2="1">
-          <stop offset="0%" stopColor="#cce29a" />
-          <stop offset="60%" stopColor="#9bbf60" />
-          <stop offset="100%" stopColor="#73904a" />
+          <stop offset="0%" stopColor="#fff1cb" />
+          <stop offset="60%" stopColor="#e3bf80" />
+          <stop offset="100%" stopColor="#a88245" />
         </linearGradient>
-        {/* Visited countries — warmer amber tint over the green so they
-         *  read as "places I've been" against the rest of Earth. */}
+        {/* Visited countries — saturated amber that pops against the
+         *  unvisited parchment. */}
         <linearGradient id="land-place" x1="0.3" x2="0.7" y1="0" y2="1">
-          <stop offset="0%" stopColor="#cda060" />
-          <stop offset="55%" stopColor="#a07b3e" />
-          <stop offset="100%" stopColor="#74582a" />
+          <stop offset="0%" stopColor="#f5cf86" />
+          <stop offset="55%" stopColor="#c8893a" />
+          <stop offset="100%" stopColor="#8a5a1e" />
         </linearGradient>
-        {/* Thin atmosphere ring just inside the sphere edge. */}
+        {/* Thin warm atmospheric rim. */}
         <radialGradient id="atmosphere" cx="50%" cy="50%" r="50%">
-          <stop offset="92%" stopColor="rgba(120, 175, 230, 0)" />
-          <stop offset="97%" stopColor="rgba(160, 200, 240, 0.45)" />
-          <stop offset="100%" stopColor="rgba(180, 220, 255, 0.0)" />
+          <stop offset="92%" stopColor="rgba(255, 210, 150, 0)" />
+          <stop offset="97%" stopColor="rgba(255, 220, 170, 0.35)" />
+          <stop offset="100%" stopColor="rgba(255, 230, 180, 0.0)" />
         </radialGradient>
         <radialGradient id="globe-marker">
           <stop offset="0%" stopColor="#b6803a" stopOpacity="0.95" />
@@ -257,10 +259,10 @@ const GlobeSVG = memo(function GlobeSVG({
       <Sphere
         id="globe-sphere"
         fill="url(#ocean)"
-        stroke="rgba(150, 200, 240, 0.32)"
+        stroke="rgba(255, 210, 150, 0.25)"
         strokeWidth={0.8}
       />
-      {/* Soft atmospheric rim just inside the limb */}
+      {/* Warm atmospheric rim just inside the limb */}
       <Sphere
         id="globe-atmo"
         fill="url(#atmosphere)"
@@ -269,7 +271,7 @@ const GlobeSVG = memo(function GlobeSVG({
       />
 
       <Graticule
-        stroke="rgba(180, 220, 255, 0.08)"
+        stroke="rgba(255, 210, 150, 0.08)"
         strokeWidth={0.4}
         step={[15, 15]}
       />
@@ -298,7 +300,7 @@ const GlobeSVG = memo(function GlobeSVG({
                 onMouseEnter={() => onCountryEnter(name)}
                 onClick={() => onCountryClick(name, hasPlace)}
                 fill={fill}
-                stroke={isHi ? "#f5e6b8" : "rgba(20, 30, 14, 0.45)"}
+                stroke={isHi ? "#fff1cb" : "rgba(70, 45, 18, 0.55)"}
                 strokeWidth={isHi ? 0.8 : 0.3}
                 style={{
                   default: {
@@ -836,13 +838,13 @@ function GlobeImpl({
       onDoubleClick={recenter}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* Outer atmospheric bloom — a soft blue halo that extends just past
+      {/* Outer atmospheric bloom — a warm cream halo that extends just past
        *  the sphere edge so the planet reads as "in atmosphere," not flat. */}
       <div
-        className="pointer-events-none absolute -inset-[6%] rounded-full"
+        className="pointer-events-none absolute -inset-[8%] rounded-full"
         style={{
           background:
-            "radial-gradient(circle at 50% 50%, rgba(120, 175, 230, 0) 47%, rgba(120, 175, 230, 0.20) 50%, rgba(120, 175, 230, 0.07) 55%, rgba(120, 175, 230, 0) 65%)",
+            "radial-gradient(circle at 50% 50%, rgba(255, 220, 170, 0) 46%, rgba(255, 220, 170, 0.16) 50%, rgba(255, 220, 170, 0.06) 56%, rgba(255, 220, 170, 0) 68%)",
         }}
       />
 
@@ -912,8 +914,8 @@ export default function Globe(props: Props) {
           className="absolute inset-0 rounded-full"
           style={{
             background:
-              "radial-gradient(circle at 36% 32%, #3d6da3 0%, #1f4374 55%, #0e2447 100%)",
-            opacity: 0.8,
+              "radial-gradient(circle at 36% 32%, #4b6878 0%, #2c4858 55%, #0a1620 100%)",
+            opacity: 0.85,
           }}
         />
       </div>
