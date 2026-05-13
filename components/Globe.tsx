@@ -44,6 +44,11 @@ type Props = {
   /** When true, the focus marker shines/sparkles brighter — used during the
    *  Random Place spinner. */
   sparkle?: boolean;
+  /** Camera offset in pixels. Drives both the globe's own translate
+   *  AND the parallax in the surrounding universe — they live together
+   *  in Stage so the whole scene flies coherently. */
+  cameraOffset?: { x: number; y: number };
+  onCameraChange?: (next: { x: number; y: number }) => void;
   placeSlugs?: Set<string>;
   onCountryHover?: (countryName: string | null) => void;
   onCountryClick?: (countryName: string) => void;
@@ -270,8 +275,10 @@ const GlobeSVG = memo(function GlobeSVG({
         strokeWidth={0}
       />
 
+      {/* Graticule visibility scales up with zoom — at high zoom we want
+       *  the lat/lon curves to remain readable so curvature is felt. */}
       <Graticule
-        stroke="rgba(255, 210, 150, 0.08)"
+        stroke={`rgba(255, 210, 150, ${Math.min(0.28, 0.08 + zoom * 0.04)})`}
         strokeWidth={0.4}
         step={[15, 15]}
       />
@@ -613,16 +620,22 @@ function GlobeImpl({
   legsThrough = null,
   size = 520,
   sparkle = false,
+  cameraOffset = { x: 0, y: 0 },
+  onCameraChange,
   placeSlugs,
   onCountryHover,
   onCountryClick,
 }: Props) {
   const [rotate, setRotate] = useState<[number, number, number]>([-15, -25, 0]);
   const [zoom, setZoom] = useState<number>(1);
-  // Translation offset in pixels — lets the user push the globe around inside
-  // the universe with Shift+drag (or right/middle button drag). The globe
-  // feels like a free-floating object rather than a fixed centerpiece.
-  const [offset, setOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Translation is OWNED by the parent (Stage) so dragging here also drives
+  // the parallax in the surrounding UniverseBackdrop — they share one
+  // camera. We read the current value from props and shadow it in a ref so
+  // pointer-move can compute deltas without going through React state.
+  const offsetRef = useRef<{ x: number; y: number }>(cameraOffset);
+  useEffect(() => {
+    offsetRef.current = cameraOffset;
+  }, [cameraOffset]);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
   const [hoveredMarkerCountry, setHoveredMarkerCountry] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -756,7 +769,12 @@ function GlobeImpl({
     const dy = e.clientY - lastPointer.current.y;
     lastPointer.current = { x: e.clientX, y: e.clientY };
     if (dragMode.current === "translate") {
-      setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      const next = {
+        x: offsetRef.current.x + dx,
+        y: offsetRef.current.y + dy,
+      };
+      offsetRef.current = next;
+      onCameraChange?.(next);
     } else {
       setRotate(([l, p, g]) => {
         const nl = (l + (dx * 0.4) / zoom) % 360;
@@ -775,8 +793,11 @@ function GlobeImpl({
     interactingAt.current = performance.now();
   };
 
-  // Double-click on empty area = recenter the globe back to the middle.
-  const recenter = () => setOffset({ x: 0, y: 0 });
+  // Double-click on empty area = recenter the camera back to the middle.
+  const recenter = () => {
+    offsetRef.current = { x: 0, y: 0 };
+    onCameraChange?.({ x: 0, y: 0 });
+  };
 
   useEffect(() => {
     const el = wrapperRef.current;
@@ -785,9 +806,9 @@ function GlobeImpl({
       e.preventDefault();
       const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12;
       // Min 0.35 so the user can pull back and see lots of universe around
-      // the globe; max 60 so they can zoom right onto the surface and read
-      // country shapes at street scale.
-      setZoom((z) => Math.max(0.35, Math.min(60, z * factor)));
+      // the globe; max 4 because past that the orthographic crop becomes
+      // a flat disk and the sphere no longer reads as a sphere.
+      setZoom((z) => Math.max(0.35, Math.min(4, z * factor)));
       interactingAt.current = performance.now();
     };
     el.addEventListener("wheel", handler, { passive: false });
@@ -822,7 +843,7 @@ function GlobeImpl({
       style={{
         aspectRatio: "1 / 1",
         maxWidth: size,
-        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        transform: `translate(${cameraOffset.x}px, ${cameraOffset.y}px)`,
         transition: dragging.current ? "none" : "transform 220ms ease-out",
       }}
       onPointerDown={onPointerDown}

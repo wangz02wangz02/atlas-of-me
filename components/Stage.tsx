@@ -36,6 +36,15 @@ export default function Stage({ places }: { places: Place[] }) {
   const [center, setCenter] = useState<[number, number]>(CONTINENT_VIEW.All.center);
   const [zoom, setZoom] = useState<number>(CONTINENT_VIEW.All.zoom);
   const [randomSpinning, setRandomSpinning] = useState<boolean>(false);
+  // Camera offset shared by Globe + UniverseBackdrop. Dragging the Earth
+  // moves the camera, which drifts the planets and starfield in parallax —
+  // makes the whole scene feel like a 3rd-person flight around the orb.
+  const [cameraOffset, setCameraOffset] = useState<{ x: number; y: number }>({
+    x: 0,
+    y: 0,
+  });
+  // Toggle for the Where-Next overlay (formerly in the right hover drawer).
+  const [wheresNextOpen, setWheresNextOpen] = useState(false);
   const overlayScrollRef = useRef<HTMLDivElement>(null);
 
   const placesByCountry = useMemo(() => {
@@ -98,12 +107,14 @@ export default function Stage({ places }: { places: Place[] }) {
 
   // View change → reset to view-appropriate defaults.  Flat map should always
   // start "All" view (full world, zoom 0.85) when the user switches into it
-  // unless they're actively scrubbing.
+  // unless they're actively scrubbing.  Camera offset is also reset so
+  // the universe view is recentered on entry.
   useEffect(() => {
     if (view === "flat" && stop <= 0) {
       setCenter(CONTINENT_VIEW.All.center);
       setZoom(CONTINENT_VIEW.All.zoom);
     }
+    setCameraOffset({ x: 0, y: 0 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view]);
 
@@ -224,7 +235,10 @@ export default function Stage({ places }: { places: Place[] }) {
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
           >
-            <UniverseBackdrop palette={view === "memories" ? "memories" : "globe"} />
+            <UniverseBackdrop
+              palette={view === "memories" ? "memories" : "globe"}
+              cameraOffset={cameraOffset}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -255,6 +269,8 @@ export default function Stage({ places }: { places: Place[] }) {
                 legsThrough={legsThrough}
                 size={900}
                 sparkle={randomSpinning}
+                cameraOffset={cameraOffset}
+                onCameraChange={setCameraOffset}
                 placeSlugs={placeSlugs}
                 showRoute={layers.trail}
                 showTerminator={layers.dayNight}
@@ -369,6 +385,12 @@ export default function Stage({ places }: { places: Place[] }) {
             icon="✺"
             disabled={randomSpinning}
           />
+          <TouchbarButton
+            active={wheresNextOpen}
+            onClick={() => setWheresNextOpen(true)}
+            label="Where next?"
+            icon="➤"
+          />
           <div className="mx-1 h-7 w-px bg-paper-3" />
           <Link
             href="/passport"
@@ -389,16 +411,39 @@ export default function Stage({ places }: { places: Place[] }) {
         </div>
       </HoverDrawer>
 
-      {/* Right hover drawer — layers + where-next predictions */}
+      {/* Right hover drawer — just the layers panel now. "Where next?"
+       *  has moved to the bottom touchbar as a single button + modal. */}
       <HoverDrawer side="right">
-        <div className="flex flex-col gap-3">
-          <LayersPanel layers={layers} onChange={setLayers} />
-          <NextDestinations
-            fromSlug={predictFromSlug}
-            fromName={predictFromName}
-          />
-        </div>
+        <LayersPanel layers={layers} onChange={setLayers} />
       </HoverDrawer>
+
+      {/* Where-next modal — opened from the bottom touchbar. */}
+      <AnimatePresence>
+        {wheresNextOpen && (
+          <motion.div
+            key="wheres-next"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-ink/55 backdrop-blur-sm"
+            onClick={() => setWheresNextOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 30, scale: 0.96, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 30, scale: 0.97, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 250, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <NextDestinations
+                fromSlug={predictFromSlug}
+                fromName={predictFromName}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Detail overlay */}
       <AnimatePresence>
@@ -455,7 +500,7 @@ function GlobeHint() {
           transition={{ duration: 0.5 }}
           className="pointer-events-none fixed left-1/2 top-[88px] z-30 -translate-x-1/2 rounded-full border border-white/15 bg-black/45 px-3 py-1 text-[10px] uppercase tracking-[0.28em] text-paper/70 backdrop-blur"
         >
-          drag&nbsp;to&nbsp;move · shift+drag&nbsp;to&nbsp;rotate · scroll&nbsp;to&nbsp;zoom · dbl&minus;click&nbsp;to&nbsp;recenter
+          drag&nbsp;to&nbsp;fly&nbsp;the&nbsp;camera · shift+drag&nbsp;to&nbsp;rotate&nbsp;Earth · scroll&nbsp;to&nbsp;zoom · dbl&minus;click&nbsp;to&nbsp;recenter
         </motion.div>
       )}
     </AnimatePresence>

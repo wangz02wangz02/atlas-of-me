@@ -7,6 +7,11 @@ type Props = {
   /** Memories palette = deeper, more midnight. Globe palette = slightly
    *  warmer with a hint of dusk. */
   palette?: "memories" | "globe";
+  /** Camera offset in pixels.  Stars and planets get a *fraction* of this
+   *  applied so they drift at "distant body" speeds when the user drags
+   *  the camera through the universe.  Stars move least, planets a bit
+   *  more, Earth at full speed (handled by Globe itself). */
+  cameraOffset?: { x: number; y: number };
 };
 
 type Star = {
@@ -69,8 +74,24 @@ const STAR_COUNT = 620;
  *    feel "distant" rather than dragged across the screen.
  *  - Deterministic seed → no hydration mismatch.
  */
-export default function UniverseBackdrop({ palette = "globe" }: Props) {
+export default function UniverseBackdrop({
+  palette = "globe",
+  cameraOffset = { x: 0, y: 0 },
+}: Props) {
   const colors = PALETTES[palette];
+
+  // Parallax factors — small fractions of the camera offset so distant
+  // objects drift slowly when the user drags around. The starfield gets
+  // the tiniest factor (effectively infinite distance), planets a bit
+  // more (they're closer than stars). Earth itself rides at 1.0 inside
+  // the Globe component, so it appears to move "the most" — which is
+  // the correct perspective for a 3rd-person camera flight around it.
+  const starShiftX = cameraOffset.x * -0.08;
+  const starShiftY = cameraOffset.y * -0.08;
+  const planetShiftX = cameraOffset.x * -0.35;
+  const planetShiftY = cameraOffset.y * -0.35;
+  const nebulaShiftX = cameraOffset.x * -0.04;
+  const nebulaShiftY = cameraOffset.y * -0.04;
 
   const stars = useMemo<Star[]>(() => {
     let s = palette === "globe" ? 9301 : 4221;
@@ -173,8 +194,8 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
       className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
       style={{ background: colors.bg }}
     >
-      {/* Two nebula washes for color variation behind the stars. Kept very
-       *  low opacity so they read as "atmosphere" rather than wallpaper. */}
+      {/* Nebula washes — drift extremely slowly with the camera (almost
+       *  infinite distance). */}
       <div
         className="absolute"
         style={{
@@ -184,6 +205,7 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
           height: "60%",
           background: `radial-gradient(ellipse at 30% 40%, ${colors.nebula1}, transparent 65%)`,
           filter: "blur(40px)",
+          transform: `translate(${nebulaShiftX}px, ${nebulaShiftY}px)`,
         }}
       />
       <div
@@ -195,11 +217,12 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
           height: "55%",
           background: `radial-gradient(ellipse at 60% 50%, ${colors.nebula2}, transparent 65%)`,
           filter: "blur(60px)",
+          transform: `translate(${nebulaShiftX}px, ${nebulaShiftY}px)`,
         }}
       />
 
-      {/* Celestial bodies — Sun, Moon, Mars, and a far gas-giant. Each
-       *  drifts very slowly so they feel distant rather than animated. */}
+      {/* Celestial bodies — drift slowly on their own AND parallax with the
+       *  camera offset so the whole scene moves coherently. */}
       {bodies.map((p, i) => (
         <motion.div
           key={i}
@@ -209,8 +232,8 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
             top: `${p.y}%`,
             width: p.r * 2,
             height: p.r * 2,
-            marginLeft: -p.r,
-            marginTop: -p.r,
+            marginLeft: -p.r + planetShiftX,
+            marginTop: -p.r + planetShiftY,
             opacity: p.kind === "sun" ? 0.65 : 0.42,
           }}
           animate={{
@@ -356,14 +379,15 @@ export default function UniverseBackdrop({ palette = "globe" }: Props) {
         </motion.div>
       ))}
 
-      {/* Starfield. preserveAspectRatio=none stretches the viewBox to the
-       *  viewport so stars distribute evenly across the whole screen. */}
+      {/* Starfield — drifts at the smallest parallax fraction (effectively
+       *  "infinite distance"). */}
       <svg
         viewBox="0 0 100 100"
         preserveAspectRatio="none"
         width="100%"
         height="100%"
         className="absolute inset-0"
+        style={{ transform: `translate(${starShiftX}px, ${starShiftY}px)` }}
       >
         {stars.map((star, i) => {
           if (star.bright) {
