@@ -27,6 +27,7 @@ import {
   getCountryMemoryDensity,
 } from "@/lib/places";
 import LandmarkLayer from "./LandmarkLayer";
+import LegTraveler from "./LegTraveler";
 
 const GEO_URL = "/geo/countries-110m.json";
 const TO_RAD = Math.PI / 180;
@@ -45,6 +46,9 @@ type Props = {
   showLandmarks?: boolean;
   showHeatmap?: boolean;
   legsThrough?: number | null;
+  /** 0-based index of the leg that just brought the traveler to the focused stop.
+   *  Drives the moving plane / mode glyph. */
+  activeLegIndex?: number | null;
   focusedSlug?: string | null;
   placeSlugs?: Set<string>;
   onMoveEnd?: (pos: { coordinates: [number, number]; zoom: number }) => void;
@@ -135,6 +139,7 @@ const MapBody = memo(function MapBody({
   showLandmarks,
   showHeatmap,
   legsThrough,
+  activeLegIndex,
   focusedSlug,
   zoom,
   nowMs,
@@ -153,6 +158,7 @@ const MapBody = memo(function MapBody({
   showLandmarks: boolean;
   showHeatmap: boolean;
   legsThrough: number | null;
+  activeLegIndex: number | null;
   focusedSlug: string | null;
   zoom: number;
   nowMs: number;
@@ -288,6 +294,17 @@ const MapBody = memo(function MapBody({
           );
         })}
 
+      {/* Plane / mode glyph riding the most-recent arrival leg. Indiana Jones effect. */}
+      {activeLegIndex != null && legs[activeLegIndex] && (
+        <LegTraveler
+          fromCoord={legs[activeLegIndex].fromCoord}
+          toCoord={legs[activeLegIndex].toCoord}
+          mode={legs[activeLegIndex].mode}
+          legKey={legs[activeLegIndex].index}
+          zoom={zoom}
+        />
+      )}
+
       {focusedPlace && (
         <Marker coordinates={focusedPlace.coordinates}>
           <g pointerEvents="none">
@@ -399,6 +416,7 @@ export default function WorldMap({
   showLandmarks = false,
   showHeatmap = false,
   legsThrough = null,
+  activeLegIndex = null,
   focusedSlug = null,
   placeSlugs,
   onMoveEnd,
@@ -530,6 +548,7 @@ export default function WorldMap({
                 showLandmarks={showLandmarks}
                 showHeatmap={showHeatmap}
                 legsThrough={legsThrough}
+                activeLegIndex={activeLegIndex}
                 focusedSlug={focusedSlug}
                 zoom={zoom}
                 nowMs={nowMs}

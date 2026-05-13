@@ -18,6 +18,11 @@ import { geoInterpolate } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
 import { LEGS, CITIES } from "@/lib/places";
+import {
+  matchConstellation,
+  type Match,
+  CONSTELLATIONS,
+} from "@/lib/constellations";
 
 type Props = {
   places: Place[];
@@ -301,6 +306,25 @@ function BackgroundStars({ seed }: { seed: number }) {
   );
 }
 
+function unwrapLongitudes(
+  pts: [number, number][],
+): [number, number][] {
+  if (pts.length === 0) return [];
+  const out: [number, number][] = pts.map(([x, y]) => [x, y]);
+  for (let i = 1; i < out.length; i++) {
+    let dx = out[i][0] - out[i - 1][0];
+    while (dx > 180) {
+      out[i][0] -= 360;
+      dx = out[i][0] - out[i - 1][0];
+    }
+    while (dx < -180) {
+      out[i][0] += 360;
+      dx = out[i][0] - out[i - 1][0];
+    }
+  }
+  return out;
+}
+
 function ConstellationImpl({
   places,
   size = 520,
@@ -312,9 +336,25 @@ function ConstellationImpl({
   const [rotate, setRotate] = useState<[number, number, number]>([-15, -25, 0]);
   const [zoom, setZoom] = useState<number>(1);
   const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+  const [revealOpen, setRevealOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const lastPointer = useRef<{ x: number; y: number } | null>(null);
+
+  // Match the chronological shape of the trip against known constellations.
+  // Re-computed only when the underlying CITIES/LEGS change, which is never
+  // during a session — so this is effectively a one-shot.
+  const matches = useMemo<Match[]>(() => {
+    const stopSlugs = [LEGS[0].from, ...LEGS.map((l) => l.to)];
+    const raw: [number, number][] = stopSlugs
+      .map((slug) => CITIES[slug]?.coordinates)
+      .filter(
+        (c): c is [number, number] => Array.isArray(c) && c.length === 2,
+      );
+    const journey = unwrapLongitudes(raw);
+    return matchConstellation(journey);
+  }, []);
+  const best = matches[0];
 
   // Fly to focused city
   useEffect(() => {
@@ -436,6 +476,74 @@ function ConstellationImpl({
             className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-md border border-white/15 bg-black/60 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-amber backdrop-blur"
           >
             {hoveredCountry}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Reveal toggle in the top-right corner of the orb */}
+      {best && (
+        <button
+          type="button"
+          onClick={() => setRevealOpen((v) => !v)}
+          className="absolute right-4 top-4 rounded-full border border-white/15 bg-black/60 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-amber backdrop-blur transition hover:border-amber/40"
+        >
+          {revealOpen ? "Hide reveal" : "Which constellation?"}
+        </button>
+      )}
+
+      <AnimatePresence>
+        {revealOpen && best && (
+          <motion.div
+            key="reveal"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 10 }}
+            transition={{ duration: 0.24 }}
+            className="absolute left-1/2 top-[68%] z-10 w-[min(440px,86%)] -translate-x-1/2 rounded-md border border-white/15 bg-black/72 p-4 text-paper shadow-2xl backdrop-blur"
+          >
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] uppercase tracking-[0.3em] text-paper/60">
+                Your trip looks like…
+              </div>
+              <div className="text-[10px] uppercase tracking-[0.2em] text-amber">
+                {best.constellation.zodiac ? "Zodiac" : "Constellation"}
+              </div>
+            </div>
+            <div className="mt-1 flex items-baseline justify-between gap-4">
+              <div className="font-display text-2xl text-paper">
+                {best.constellation.name}
+              </div>
+              <div className="font-mono text-[10px] text-paper/50">
+                {(best.similarity * 100).toFixed(0)}% match
+              </div>
+            </div>
+            <p className="mt-2 text-[12px] leading-snug text-paper/85">
+              {best.constellation.story}
+            </p>
+            <div className="mt-3 flex items-center gap-3 border-t border-white/10 pt-2 text-[10px] text-paper/55">
+              <span className="uppercase tracking-[0.22em]">Also like</span>
+              {matches.slice(1, 4).map((m) => (
+                <span key={m.constellation.abbr} className="uppercase tracking-[0.18em]">
+                  {m.constellation.name}{" "}
+                  <span className="text-paper/40">
+                    {(m.similarity * 100).toFixed(0)}%
+                  </span>
+                </span>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between gap-3 border-t border-white/10 pt-2 text-[9px] uppercase tracking-[0.22em] text-paper/40">
+              <span>
+                Matched against {CONSTELLATIONS.length} of the 88 IAU
+                constellations.
+              </span>
+              <button
+                type="button"
+                onClick={() => setRevealOpen(false)}
+                className="text-paper/60 hover:text-amber"
+              >
+                Close
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

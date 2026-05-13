@@ -1,0 +1,569 @@
+{
+  "amsterdam": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/5/57/Imagen_de_los_canales_conc%C3%A9ntricos_en_%C3%81msterdam.png",
+    "alt": "Amsterdam — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Amsterdam",
+    "width": 2480,
+    "height": 1654
+  },
+  "berlin": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/f/f7/Museumsinsel_Berlin_Juli_2021_1_%28cropped%29_b.jpg",
+    "alt": "Berlin — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Berlin",
+    "width": 5464,
+    "height": 3186
+  },
+  "brussels": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Grand_Place_Bruselas_2.jpg",
+    "alt": "Brussels — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Brussels",
+    "width": 3332,
+    "height": 2000
+  },
+  "barcelona": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Aerial_view_of_Barcelona%2C_Spain_%2851227309370%29_edited.jpg",
+    "alt": "Barcelona — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Barcelona",
+    "width": 5211,
+    "height": 2278
+  },
+  "copenhagen": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/1/15/2018_-_Christiansborg_from_the_Marble_Bridge.jpg",
+    "alt": "Copenhagen — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Copenhagen",
+    "width": 4545,
+    "height": 3000
+  },
+  "cairo": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/7/72/Cairo_Opera_House%2C_Al_Hurriyah_Park_and_the_Nile_river_%2814797782354%29.jpg",
+    "alt": "Cairo — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Cairo",
+    "width": 4288,
+    "height": 2848
+  },
+  "florence": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/d/d2/FirenzeDec092023_01.jpg",
+    "alt": "Florence — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Florence",
+    "width": 4000,
+    "height": 2668
+  },
+  "geneva": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Geneve_2005_001_Ork.ch.jpg",
+    "alt": "Geneva — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Geneva",
+    "width": 3624,
+    "height": 2368
+  },
+  "malmo": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Malm%C3%B6%E2%80%93flygbild_06_september_2014.jpg",
+    "alt": "Malmö — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Malm%C3%B6",
+    "width": 3841,
+    "height": 2561
+  },
+  "munich": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/d/d3/Stadtbild_M%C3%BCnchen.jpg",
+    "alt": "Munich — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Munich",
+    "width": 4861,
+    "height": 3285
+  },
+  "paris": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/4/4b/La_Tour_Eiffel_vue_de_la_Tour_Saint-Jacques%2C_Paris_ao%C3%BBt_2014_%282%29.jpg",
+    "alt": "Paris — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Paris",
+    "width": 4592,
+    "height": 2870
+  },
+  "prague": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Prague_%286365119737%29.jpg",
+    "alt": "Prague — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Prague",
+    "width": 3840,
+    "height": 2284
+  },
+  "rome": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/7/7e/Trevi_Fountain%2C_Rome%2C_Italy_2_-_May_2007.jpg",
+    "alt": "Rome — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Rome",
+    "width": 3500,
+    "height": 2325
+  },
+  "rotterdam": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/e/e3/A_view_of_Rotterdam%2C_taken_from_the_roof_of_the_Maassilo%2C_Rotterdam%2C_The_Netherlands.jpg",
+    "alt": "Rotterdam — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Rotterdam",
+    "width": 5493,
+    "height": 3661
+  },
+  "milan": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/3/3f/Milan_-_Scala_-_Facade.jpg",
+    "alt": "Milan — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Milan",
+    "width": 4140,
+    "height": 2916
+  },
+  "budapest": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/5/53/View_from_Gell%C3%A9rt_Hill_to_the_Danube%2C_Hungary_-_Budapest_%2828493220635%29.jpg",
+    "alt": "Budapest — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Budapest",
+    "width": 2500,
+    "height": 1293
+  },
+  "bern": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/4/45/Bundeshaus_Bern_2009%2C_Flooffy.jpg",
+    "alt": "Bern — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Bern",
+    "width": 1280,
+    "height": 843
+  },
+  "vienna": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Schoenbrunn_philharmoniker_2012.jpg",
+    "alt": "Vienna — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Vienna",
+    "width": 5073,
+    "height": 2282
+  },
+  "sofia": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/b/be/Russian_church_%2837591925970%29.jpg",
+    "alt": "Sofia — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Sofia",
+    "width": 3641,
+    "height": 2907
+  },
+  "paris-disney": {
+    "src": "https://upload.wikimedia.org/wikipedia/en/8/88/Sleeping_Beauty_Castle%2C_Disneyland%2C_Paris.jpg",
+    "alt": "Disneyland Paris — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Disneyland_Paris",
+    "width": 3248,
+    "height": 2160
+  },
+  "interlaken": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/1/14/Goldswil-Viadukt_Panorama_mit_Interlaken_im_Hintergrund_2.jpg",
+    "alt": "Interlaken — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Interlaken",
+    "width": 4515,
+    "height": 3333
+  },
+  "new-york": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/7/7a/View_of_Empire_State_Building_from_Rockefeller_Center_New_York_City_dllu_%28cropped%29.jpg",
+    "alt": "New York City — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/New_York_City",
+    "width": 8207,
+    "height": 4616
+  },
+  "koge": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/0/03/K%C3%B8ge_-_statue_af_Frederik_7._-_Torvet.jpg",
+    "alt": "Køge — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/K%C3%B8ge",
+    "width": 2592,
+    "height": 1944
+  },
+  "zurich": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/af/Altstadt_Z%C3%BCrich_2015.jpg",
+    "alt": "Zürich — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Zurich",
+    "width": 11303,
+    "height": 6164
+  },
+  "madrid": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/1/14/Madrid_-_Sky_Bar_360%C2%BA_%28Hotel_Riu_Plaza_Espa%C3%B1a%29%2C_vistas_19.jpg",
+    "alt": "Madrid — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Madrid",
+    "width": 4422,
+    "height": 2328
+  },
+  "athens": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/7/74/Monastiraki_Square_and_Acropolis_in_Athens_%2844149181684%29.jpg",
+    "alt": "Athens — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Athens",
+    "width": 6240,
+    "height": 4160
+  },
+  "frankfurt": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/ac/Frankfurt_Main_August_2020_1.jpg",
+    "alt": "Frankfurt — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Frankfurt",
+    "width": 5464,
+    "height": 3640
+  },
+  "helsinki": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/3/3e/Suomenlinna_%28cropped%29.jpg",
+    "alt": "Helsinki — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Helsinki",
+    "width": 1810,
+    "height": 1018
+  },
+  "lisbon": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/f/f2/Lisboa_-_Portugal_%2852597836992%29.jpg",
+    "alt": "Lisbon — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Lisbon",
+    "width": 2048,
+    "height": 1313
+  },
+  "oslo": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/9/9a/Nationaltheatret_evening.jpg",
+    "alt": "Oslo — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Oslo",
+    "width": 4000,
+    "height": 2500
+  },
+  "riga": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/2/2f/Riga_%2833844464828%29.jpg",
+    "alt": "Riga — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Riga",
+    "width": 5995,
+    "height": 3597
+  },
+  "stockholm": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Royal_Dramatic_Theatre_Stockholm.jpg",
+    "alt": "Stockholm — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Stockholm",
+    "width": 4928,
+    "height": 3264
+  },
+  "skopje": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/7/73/Skopje_view_from_Kale_3.jpg",
+    "alt": "Skopje — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Skopje",
+    "width": 8075,
+    "height": 3000
+  },
+  "tirana": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/0/0d/Skanderbeg_square_tirana_2016.jpg",
+    "alt": "Tirana — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Tirana",
+    "width": 6000,
+    "height": 3005
+  },
+  "tallinn": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/7/70/Raekoja_plats_at_night.jpg",
+    "alt": "Tallinn — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Tallinn",
+    "width": 4062,
+    "height": 2709
+  },
+  "vilnius": {
+    "src": "https://upload.wikimedia.org/wikipedia/en/8/84/The_White_Bridge_and_%C5%A0nipi%C5%A1k%C4%97s_district_in_Vilnius_in_2023_by_Augustas_Did%C5%BEgalvis.jpg",
+    "alt": "Vilnius — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Vilnius",
+    "width": 1800,
+    "height": 1195
+  },
+  "bucharest": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/a0/Bucharest_University_Square_%28cropped%29.jpg",
+    "alt": "Bucharest — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Bucharest",
+    "width": 2048,
+    "height": 1235
+  },
+  "seville": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/2/2b/Sevilla_Cathedral_-_Southeast.jpg",
+    "alt": "Seville — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Seville",
+    "width": 3900,
+    "height": 2908
+  },
+  "granada": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/5/56/Granada_%2825987961022%29.jpg",
+    "alt": "Granada — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Granada",
+    "width": 4608,
+    "height": 3456
+  },
+  "amman": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/2/24/New_Abdali_2024.png",
+    "alt": "Amman — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Amman",
+    "width": 1920,
+    "height": 1080
+  },
+  "belgrade": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/a0/Panorama_Belgrad.jpg",
+    "alt": "Belgrade — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Belgrade",
+    "width": 4855,
+    "height": 2683
+  },
+  "bergen": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/3/3b/Bergen_panorama_at_night_-_panoramio_%281%29.jpg",
+    "alt": "Bergen — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Bergen",
+    "width": 5202,
+    "height": 3465
+  },
+  "valletta": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/b/b7/St_Sebastian_Curtain_%28cropped%29.jpg",
+    "alt": "Valletta — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Valletta",
+    "width": 4608,
+    "height": 2458
+  },
+  "porto": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/e/e5/Puente_Don_Luis_I%2C_Oporto%2C_Portugal%2C_2012-05-09%2C_DD_13.JPG",
+    "alt": "Porto — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Porto",
+    "width": 5292,
+    "height": 3265
+  },
+  "podgorica": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/f/f5/P064720-426794_-_Panoramic_view_of_Podgorica.jpg",
+    "alt": "Podgorica — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Podgorica",
+    "width": 3987,
+    "height": 2824
+  },
+  "tromso": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/b/b0/Troms%C3%B8_sentrum_%285835702754%29.jpg",
+    "alt": "Tromsø — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Troms%C3%B8",
+    "width": 2268,
+    "height": 1512
+  },
+  "larnaca": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/9/97/Larnaca_01-2017_img27_Finikoudes.jpg",
+    "alt": "Larnaca — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Larnaca",
+    "width": 4073,
+    "height": 2715
+  },
+  "paphos": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Paphos_Marine%2C_Cyprus_-_panoramio.jpg",
+    "alt": "Paphos — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Paphos",
+    "width": 1920,
+    "height": 1280
+  },
+  "istanbul": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/c/cb/Historical_peninsula_and_modern_skyline_of_Istanbul.jpg",
+    "alt": "Istanbul — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Istanbul",
+    "width": 3301,
+    "height": 1595
+  },
+  "pristina": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/0/03/Prishtina_seen_from_Mother_Theresa_Cathedral.jpg",
+    "alt": "Pristina — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Pristina",
+    "width": 3769,
+    "height": 2513
+  },
+  "belfast": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/c/c8/StormontGeneral.jpg",
+    "alt": "Belfast — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Belfast",
+    "width": 2304,
+    "height": 1728
+  },
+  "chicago": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/a5/Chicago_River_ferry_b.jpg",
+    "alt": "Chicago — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Chicago",
+    "width": 3736,
+    "height": 2641
+  },
+  "casablanca": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/6/6c/Casa_finance_city_6_%28cropped%29.jpg",
+    "alt": "Casablanca — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Casablanca",
+    "width": 2930,
+    "height": 1361
+  },
+  "dublin": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/9/92/Dublin_-_aerial_-_2025-07-07_01.jpg",
+    "alt": "Dublin — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Dublin",
+    "width": 4032,
+    "height": 2268
+  },
+  "krakow": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/a3/Krakow_Rynek_Glowny_panorama_2.jpg",
+    "alt": "Kraków — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Krak%C3%B3w",
+    "width": 7505,
+    "height": 3690
+  },
+  "london": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/6/67/London_Skyline_%28125508655%29.jpeg",
+    "alt": "London — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/London",
+    "width": 2048,
+    "height": 1152
+  },
+  "marrakesh": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Pavillon_Menarag%C3%A4rten.jpg",
+    "alt": "Marrakesh — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Marrakesh",
+    "width": 1024,
+    "height": 680
+  },
+  "reykjavik": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/0/04/Reykjav%C3%ADk%2C_view_from_Hallgr%C3%ADmskirkja_%282%29.jpg",
+    "alt": "Reykjavík — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Reykjav%C3%ADk",
+    "width": 4928,
+    "height": 3264
+  },
+  "shanghai": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/4/4c/Huangpu_Park_20124-Shanghai_%2832208802494%29.jpg",
+    "alt": "Shanghai — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Shanghai",
+    "width": 3000,
+    "height": 2003
+  },
+  "warsaw": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/3/35/Aleja_Niepdleglosci_Warsaw_2022_aerial_%28cropped%29.jpg",
+    "alt": "Warsaw — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Warsaw",
+    "width": 1870,
+    "height": 1086
+  },
+  "yerevan": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/4/45/Mount_Ararat_and_the_Yerevan_skyline_%28June_2018%29.jpg",
+    "alt": "Yerevan — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Yerevan",
+    "width": 5184,
+    "height": 3456
+  },
+  "tbilisi": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/4/45/View_of_Tbilisi_from_Tabori_Church_2023-10-08-2.jpg",
+    "alt": "Tbilisi — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Tbilisi",
+    "width": 4753,
+    "height": 3169
+  },
+  "las-vegas": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/d/da/Las_Vegas_from_above_%2840064746644%29.jpg",
+    "alt": "Las Vegas — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Las_Vegas",
+    "width": 6852,
+    "height": 3906
+  },
+  "san-francisco": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/f/f9/San_Francisco_Downtown_Aerial%2C_August_2025.jpg",
+    "alt": "San Francisco — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/San_Francisco",
+    "width": 2560,
+    "height": 1440
+  },
+  "miami": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/2/25/Villa_Vizcaya_20110228.jpg",
+    "alt": "Miami — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Miami",
+    "width": 3310,
+    "height": 1838
+  },
+  "taipei": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/e/ea/Taipei_Skyline_2022.06.29.jpg",
+    "alt": "Taipei — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Taipei",
+    "width": 4484,
+    "height": 2989
+  },
+  "toronto": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/1/1c/Toronto_Skyline_from_Snake_Island%2C_February_28_2026_%2808%29.jpg",
+    "alt": "Toronto — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Toronto",
+    "width": 6927,
+    "height": 4156
+  },
+  "lima": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/6/69/Bas%C3%ADlica_Catedral_Metropolitana_de_Lima_%28cropped%29.jpg",
+    "alt": "Lima — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Lima",
+    "width": 3439,
+    "height": 2323
+  },
+  "washington": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/e/e4/12-07-13-washington-by-RalfR-08.jpg",
+    "alt": "Washington, D.C. — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Washington,_D.C.",
+    "width": 2848,
+    "height": 4288
+  },
+  "inverness": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Inverness_Castle%2C_Scotland_-_Diliff.jpg",
+    "alt": "Inverness — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Inverness",
+    "width": 5000,
+    "height": 3452
+  },
+  "bogota": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/2/20/Bogota%2C_Colombia_%2836668708290%29.jpg",
+    "alt": "Bogotá — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Bogot%C3%A1",
+    "width": 3000,
+    "height": 2250
+  },
+  "cancun": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/d/d8/Cancun_Strand_Luftbild_%2822143397586%29.jpg",
+    "alt": "Cancún — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Canc%C3%BAn",
+    "width": 3992,
+    "height": 2242
+  },
+  "kutaisi": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/4/40/Downtown_Kutaisi_%26_White_Bridge_as_seen_from_Mt_Gora_%28August_2011%29-cropped.jpg",
+    "alt": "Kutaisi — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Kutaisi",
+    "width": 2891,
+    "height": 2098
+  },
+  "beijing": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/2/2d/Skyline_of_Beijing_CBD_with_B-5906_approaching_%2820211016171955%29_%281%29.jpg",
+    "alt": "Beijing — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Beijing",
+    "width": 6787,
+    "height": 4525
+  },
+  "fes": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/d/d5/University_karaouiyine_of_fes.jpg",
+    "alt": "Fès — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Fez,_Morocco",
+    "width": 4608,
+    "height": 3456
+  },
+  "mexico-city": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Sobrevuelos_CDMX_HJ2A4913_%2825514321687%29_%28cropped%29.jpg",
+    "alt": "Mexico City — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Mexico_City",
+    "width": 6405,
+    "height": 3358
+  },
+  "ottawa": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/2/22/Parliament-Ottawa.jpg",
+    "alt": "Ottawa — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Ottawa",
+    "width": 1153,
+    "height": 863
+  },
+  "panama": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/0/02/Panama_Papers_%28148830809%29.jpeg",
+    "alt": "Panama City — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Panama_City",
+    "width": 2048,
+    "height": 1152
+  },
+  "cusco": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/d/d7/Vista_Calle_Suecia.jpg",
+    "alt": "Cusco — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Cusco",
+    "width": 4501,
+    "height": 3001
+  },
+  "quebec": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/6/61/Quebec_City%2C_Canada.jpg",
+    "alt": "Québec City — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Quebec_City",
+    "width": 4645,
+    "height": 2903
+  },
+  "montreal": {
+    "src": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Mtl_from_mont_royal_%28cropped%29.jpg",
+    "alt": "Montréal — Wikipedia",
+    "page": "https://en.wikipedia.org/wiki/Montreal",
+    "width": 2877,
+    "height": 1524
+  }
+}

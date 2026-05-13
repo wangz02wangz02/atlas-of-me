@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import Link from "next/link";
 import Globe from "./Globe";
 import WorldMap from "./WorldMap";
 import Constellation from "./Constellation";
@@ -9,6 +10,7 @@ import HoverDrawer from "./HoverDrawer";
 import JourneyFilmstrip from "./JourneyFilmstrip";
 import LayersPanel, { type Layers } from "./LayersPanel";
 import HoveredPlaceCard from "./HoveredPlaceCard";
+import NextDestinations from "./NextDestinations";
 import PlaceDetailClient from "./PlaceDetailClient";
 import { LEGS, CITIES, CONTINENT_VIEW } from "@/lib/places";
 import type { Place } from "@/lib/places-types";
@@ -91,13 +93,35 @@ export default function Stage({ places }: { places: Place[] }) {
   );
   const onMoveEnd = useCallback(
     ({ coordinates, zoom: z }: { coordinates: [number, number]; zoom: number }) => {
-      setCenter(coordinates);
+      // Wrap longitude into [-180, 180] so the flat map's three-copy wrap looks
+      // seamless after a long drag. Vertical pan is clamped by translateExtent.
+      const wrapLon = (lon: number) =>
+        ((((lon + 180) % 360) + 360) % 360) - 180;
+      setCenter([wrapLon(coordinates[0]), coordinates[1]]);
       setZoom(z);
     },
     [],
   );
 
+  // Anchor for the "Where next?" prediction. If the user is focused on a stop,
+  // predict from there; otherwise default to the last city in the journey.
+  const predictFromSlug =
+    focusedSlug ?? LEGS[LEGS.length - 1]?.to ?? null;
+  const predictFromName = predictFromSlug
+    ? CITIES[predictFromSlug]?.name ?? null
+    : null;
+
   const legsThrough = stop > 0 && stop <= LEGS.length ? stop : null;
+  // Active leg = the leg that just brought the traveler to the focused stop.
+  // stop=0 → "view all" → show plane parked at journey's end.
+  // stop=1 → origin city, no arrival yet → no plane.
+  // stop=N (2..LEGS.length+1) → legs[N-2].
+  const activeLegIndex =
+    stop === 0
+      ? LEGS.length - 1
+      : stop >= 2 && stop <= LEGS.length + 1
+        ? Math.min(stop - 2, LEGS.length - 1)
+        : null;
 
   const zoomIn = () => setZoom((z) => Math.min(14, z * 1.4));
   const zoomOut = () => setZoom((z) => Math.max(0.6, z / 1.4));
@@ -204,6 +228,7 @@ export default function Stage({ places }: { places: Place[] }) {
                 center={center}
                 zoom={zoom}
                 legsThrough={legsThrough}
+                activeLegIndex={activeLegIndex}
                 focusedSlug={focusedSlug}
                 placeSlugs={placeSlugs}
                 showRoute={layers.trail}
@@ -343,6 +368,15 @@ export default function Stage({ places }: { places: Place[] }) {
             disabled={randomSpinning}
           />
           <div className="mx-1 h-7 w-px bg-paper-3" />
+          <Link
+            href="/passport"
+            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-xs uppercase tracking-[0.18em] text-ink-faint transition hover:bg-paper-2 hover:text-ink"
+            title="Open travel passport"
+          >
+            <span aria-hidden className="text-[13px] leading-none">⌬</span>
+            <span>Passport</span>
+          </Link>
+          <div className="mx-1 h-7 w-px bg-paper-3" />
           <button
             type="button"
             onClick={resetView}
@@ -353,9 +387,15 @@ export default function Stage({ places }: { places: Place[] }) {
         </div>
       </HoverDrawer>
 
-      {/* Right hover drawer — layers */}
+      {/* Right hover drawer — layers + where-next predictions */}
       <HoverDrawer side="right">
-        <LayersPanel layers={layers} onChange={setLayers} />
+        <div className="flex flex-col gap-3">
+          <LayersPanel layers={layers} onChange={setLayers} />
+          <NextDestinations
+            fromSlug={predictFromSlug}
+            fromName={predictFromName}
+          />
+        </div>
       </HoverDrawer>
 
       {/* Detail overlay */}
