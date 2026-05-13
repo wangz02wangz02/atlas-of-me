@@ -12,6 +12,7 @@ import LayersPanel, { type Layers } from "./LayersPanel";
 import HoveredPlaceCard from "./HoveredPlaceCard";
 import NextDestinations from "./NextDestinations";
 import PlaceDetailClient from "./PlaceDetailClient";
+import UniverseBackdrop from "./UniverseBackdrop";
 import { LEGS, CITIES, CONTINENT_VIEW } from "@/lib/places";
 import type { Place } from "@/lib/places-types";
 
@@ -189,12 +190,21 @@ export default function Stage({ places }: { places: Place[] }) {
 
   return (
     <div className="relative h-svh w-screen overflow-hidden">
-      {/* Wordmark */}
-      <div className="pointer-events-none fixed left-6 top-6 z-10">
-        <div className="text-[9px] uppercase tracking-[0.32em] text-ink-faint">
+      {/* Wordmark — theme-aware so it reads on both the paper flat map and
+       *  the universe backdrop. */}
+      <div className="pointer-events-none fixed left-6 top-6 z-30">
+        <div
+          className={`text-[9px] uppercase tracking-[0.32em] ${
+            view === "flat" ? "text-ink-faint" : "text-paper/55"
+          }`}
+        >
           A travel journal
         </div>
-        <div className="font-display text-2xl text-ink">
+        <div
+          className={`font-display text-2xl ${
+            view === "flat" ? "text-ink" : "text-paper"
+          }`}
+        >
           Atlas <span className="italic text-amber">of</span> Me
         </div>
       </div>
@@ -219,13 +229,13 @@ export default function Stage({ places }: { places: Place[] }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-              className="w-[min(86vh,86vw)] max-w-[860px]"
+              className="w-[min(72vmin,900px)]"
             >
               <Globe
                 places={places}
                 focusedSlug={focusedSlug}
                 legsThrough={legsThrough}
-                size={860}
+                size={900}
                 sparkle={randomSpinning}
                 placeSlugs={placeSlugs}
                 showRoute={layers.trail}
@@ -245,7 +255,7 @@ export default function Stage({ places }: { places: Place[] }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.99 }}
               transition={{ duration: 0.32 }}
-              className="w-[min(96vw,1500px)]"
+              className="absolute inset-0 flex items-center justify-center"
             >
               <WorldMap
                 places={places}
@@ -274,13 +284,13 @@ export default function Stage({ places }: { places: Place[] }) {
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-              className="w-[min(86vh,86vw)] max-w-[860px]"
+              className="w-[min(72vmin,900px)]"
             >
               <Constellation
                 places={places}
                 focusedSlug={focusedSlug}
                 legsThrough={legsThrough}
-                size={860}
+                size={900}
                 onCountryHover={onCountryHover}
                 onCountryClick={onCountryClick}
               />
@@ -289,21 +299,19 @@ export default function Stage({ places }: { places: Place[] }) {
         </AnimatePresence>
       </motion.div>
 
-      {/* Memories mode: night sky background */}
+      {/* Universe backdrop for Globe and Memories views — fullscreen
+       *  starfield with a couple of distant drifting planets behind the orb. */}
       <AnimatePresence>
-        {view === "memories" && (
+        {(view === "globe" || view === "memories") && (
           <motion.div
-            key="memories-bg"
+            key={`bg-${view}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
-            className="pointer-events-none fixed inset-0 -z-10"
-            style={{
-              background:
-                "radial-gradient(circle at 50% 40%, #3b4570 0%, #1d2340 55%, #0e1426 100%)",
-            }}
-          />
+          >
+            <UniverseBackdrop palette={view === "memories" ? "memories" : "globe"} />
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -316,51 +324,14 @@ export default function Stage({ places }: { places: Place[] }) {
         </div>
       )}
 
-      {/* Timeline focus caption */}
-      <AnimatePresence>
-        {focusedPlace && (
-          <motion.div
-            key={focusedPlace.slug}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            transition={{ duration: 0.2 }}
-            className="pointer-events-none fixed inset-x-0 bottom-[78px] z-20 flex justify-center"
-          >
-            <div
-              className={`rounded-md border px-3 py-1.5 shadow-md backdrop-blur-md ${
-                view === "memories"
-                  ? "border-white/20 bg-black/55"
-                  : "border-paper-3 bg-paper/95"
-              }`}
-            >
-              <span className="text-[10px] uppercase tracking-[0.3em] text-amber">
-                Stop {stop > 0 ? stop : focusedPlace.firstStop}
-              </span>
-              <span
-                className={`ml-2 font-display text-base ${
-                  view === "memories" ? "text-paper" : "text-ink"
-                }`}
-              >
-                {focusedPlace.name}
-              </span>
-              <span
-                className={`ml-2 text-[10px] uppercase tracking-[0.22em] ${
-                  view === "memories" ? "text-paper/70" : "text-ink-faint"
-                }`}
-              >
-                {focusedPlace.country}
-              </span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Filmstrip timeline */}
+      {/* Filmstrip timeline — glass capsule pinned to bottom.
+       *  Theme switches to dark on globe / memories views (universe backdrop)
+       *  and stays light on the flat paper map. */}
       <JourneyFilmstrip
         value={stop > 0 ? stop : LEGS.length + 1}
         onHover={(s) => s !== null && setStop(s)}
         onSelect={(s) => setStop(s)}
+        dark={view !== "flat"}
       />
 
       {/* Bottom hover touchbar */}

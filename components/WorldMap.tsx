@@ -638,12 +638,20 @@ export default function WorldMap({
         onCountryHover?.(null);
       }}
     >
+      {/*
+        viewBox is 1.5× WORLD_W wide so the right-hand wrap copy is partially
+        visible at default center. This lets trans-pacific great-circle arcs
+        (Tokyo → LA, LA → Sydney) read as continuous lines instead of two
+        seam-stub halves — the seam continuation lives inside the wrap copy
+        rather than past the canvas edge.
+      */}
       <ComposableMap
         projection="geoEquirectangular"
         projectionConfig={{ scale: FLAT_SCALE }}
         width={WORLD_W}
         height={WORLD_W / 2}
-        style={{ width: "100%", height: "auto" }}
+        viewBox={`${-WORLD_W / 4} 0 ${WORLD_W * 1.5} ${WORLD_W / 2}`}
+        style={{ width: "100%", height: "auto", overflow: "visible" }}
       >
         <defs>
           <linearGradient id="flat-land" x1="0" x2="0" y1="0" y2="1">
@@ -680,11 +688,12 @@ export default function WorldMap({
           </radialGradient>
         </defs>
 
-        {/* Ocean stripe across the duplicated worlds */}
+        {/* Ocean stripe across all wrap copies, wider so the rectangle
+         *  reaches past the drag extent on either side. */}
         <rect
-          x={-WORLD_W * 1.5}
+          x={-WORLD_W * 3}
           y={-WORLD_W / 4}
-          width={WORLD_W * 4}
+          width={WORLD_W * 7}
           height={WORLD_W}
           fill="url(#flat-ocean)"
         />
@@ -694,15 +703,15 @@ export default function WorldMap({
         <ZoomableGroup
           center={center}
           zoom={zoom}
-          minZoom={0.6}
+          minZoom={0.5}
           maxZoom={14}
           translateExtent={[
-            [-WORLD_W * 1.5, -WORLD_W / 4],
-            [WORLD_W * 1.5, (WORLD_W * 3) / 4],
+            [-WORLD_W * 2.5, -WORLD_W / 4],
+            [WORLD_W * 2.5, (WORLD_W * 3) / 4],
           ]}
           onMoveEnd={onMoveEnd}
         >
-          {[-1, 0, 1].map((i) => (
+          {[-2, -1, 0, 1, 2].map((i) => (
             <g key={i} transform={`translate(${i * WORLD_W} 0)`}>
               <MapBody
                 places={places}
