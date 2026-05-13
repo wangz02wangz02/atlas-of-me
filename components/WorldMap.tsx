@@ -17,7 +17,7 @@ import {
   ZoomableGroup,
   useMapContext,
 } from "react-simple-maps";
-import { geoCircle, geoInterpolate } from "d3-geo";
+import { geoCircle } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
 import {
@@ -91,55 +91,116 @@ function NightShade({ now }: { now: number }) {
 }
 
 /**
- * Convert a sequence of (lon, lat) into a single projected polyline.
+ * Build a "plane route" SVG path between two geographic points.  Instead of
+ * sampling the great-circle as a polyline (which on equirectangular flattens
+ * to a near-straight line for most pairs and produces an ugly horizontal
+ * stripe at high lat for trans-pacific routes), we draw a single quadratic
+ * Bezier between the projected endpoints with a control point offset
+ * *perpendicular to the chord, toward the top of the map*.  Every leg ends
+ * up reading like a plane-route arc — gentle for short hops, dramatic for
+ * trans-continental.
  *
- * We deliberately DON'T split at the antimeridian here.  In equirectangular
- * space, a great-circle arc from Tokyo to LA crosses lon=180/-180 and the
- * naive polyline draws one near-horizontal segment at the great-circle apex
- * (high north latitudes for transpacific routes) that visually wraps the
- * map.  That's not pretty but it keeps the line continuous, which the user
- * preferred over seeing two disconnected stubs at the canvas edges.  We
- * still bail on non-finite projection (orthographic back-hemisphere).
+ * For pairs that are shorter going via the antimeridian (|Δlon| > 180°),
+ * the path is split into two arcs that meet the seam at the canvas edges,
+ * matching how airline maps draw "going over the Pacific."
  */
-function projectSegments(
-  points: Array<[number, number]>,
+function planeRoutePath(
+  from: [number, number],
+  to: [number, number],
   projection: (c: [number, number]) => [number, number] | null,
 ): string {
-  const segs: string[] = [];
-  let current: string[] = [];
-  for (const p of points) {
-    const proj = projection(p);
-    if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
-      if (current.length > 1) segs.push(`M${current.join("L")}`);
-      current = [];
-      continue;
+  function arcPath(
+    a: [number, number],
+    b: [number, number],
+  ): string | null {
+    const pa = projection(a);
+    const pb = projection(b);
+    if (
+      !pa ||
+      !pb ||
+      !Number.isFinite(pa[0]) ||
+      !Number.isFinite(pa[1]) ||
+      !Number.isFinite(pb[0]) ||
+      !Number.isFinite(pb[1])
+    ) {
+      return null;
     }
-    current.push(`${proj[0].toFixed(2)},${proj[1].toFixed(2)}`);
+    const dx = pb[0] - pa[0];
+    const dy = pb[1] - pa[1];
+    const len = Math.hypot(dx, dy);
+    if (len < 0.1) return null;
+
+    // Perpendicular vector. Pick the variant that points "up" in screen
+    // space so every arc bulges toward the top of the map (north on
+    // equirectangular).
+    let px = -dy / len;
+    let py = dx / len;
+    if (py > 0) {
+      px = -px;
+      py = -py;
+    }
+
+    // Offset proportional to chord length, with sensible bounds so short
+    // hops still have a visible curve and long hauls don't loop forever.
+    const offset = Math.max(14, Math.min(len * 0.18, 140));
+    const mx = (pa[0] + pb[0]) / 2 + px * offset;
+    const my = (pa[1] + pb[1]) / 2 + py * offset;
+
+    return `M${pa[0].toFixed(2)},${pa[1].toFixed(2)} Q${mx.toFixed(2)},${my.toFixed(2)} ${pb[0].toFixed(2)},${pb[1].toFixed(2)}`;
   }
-  if (current.length > 1) segs.push(`M${current.join("L")}`);
-  return segs.join(" ");
+
+  // Trans-pacific / antimeridian case — split at the seam so the line goes
+  // "out the right edge, in the left edge" instead of looping across the
+  // entire map the wrong way.
+  let lonDiff = to[0] - from[0];
+  if (lonDiff > 180 || lonDiff < -180) {
+    const goingEast = lonDiff < 0;
+    // Latitude at the seam — average of the two points (rough approximation;
+    // great-circle apex is messier but visually this reads well).
+    const midLat = (from[1] + to[1]) / 2;
+    const seam1: [number, number] = goingEast ? [180, midLat] : [-180, midLat];
+    const seam2: [number, number] = goingEast ? [-180, midLat] : [180, midLat];
+    const a = arcPath(from, seam1);
+    const b = arcPath(seam2, to);
+    return [a, b].filter(Boolean).join(" ");
+  }
+
+  const single = arcPath(from, to);
+  return single ?? "";
 }
 
-function Trail({
-  points,
+/**
+ * Renders the entire journey as a concatenated set of Bezier arcs, one
+ * per leg. Used for the bulk amber glow underneath the colored per-leg
+ * arcs. `count` lets the scrubber reveal it leg-by-leg.
+ */
+function BulkJourneyTrail({
+  legs,
+  count,
   color,
   width,
 }: {
-  points: Array<[number, number]>;
+  legs: Array<{ fromCoord: [number, number]; toCoord: [number, number] }>;
+  count: number;
   color: string;
   width: number;
 }) {
   const { projection } = useMapContext() as {
     projection: (c: [number, number]) => [number, number] | null;
   };
-  const segments = useMemo(
-    () => projectSegments(points, projection),
-    [points, projection],
-  );
-  if (!segments) return null;
+  const d = useMemo(() => {
+    const upTo = Math.min(count, legs.length);
+    const parts: string[] = [];
+    for (let i = 0; i < upTo; i++) {
+      const p = planeRoutePath(legs[i].fromCoord, legs[i].toCoord, projection);
+      if (p) parts.push(p);
+    }
+    return parts.join(" ");
+  }, [legs, count, projection]);
+  if (!d) return null;
   return (
     <path
-      d={segments}
+      d={d}
       fill="none"
       stroke={color}
       strokeWidth={width}
@@ -150,11 +211,7 @@ function Trail({
 }
 
 /**
- * Per-leg colored arc, drawn as a great-circle interpolation and split at the
- * antimeridian.  Replaces react-simple-maps' built-in `<Line>` which only
- * connects two endpoints with a straight projected segment — that misses the
- * curvature of long flights and cuts diagonally across the whole map for
- * trans-pacific legs.
+ * Per-leg curved arc rendered as a quadratic Bezier — plane-route style.
  */
 function LegArc({
   from,
@@ -174,16 +231,10 @@ function LegArc({
   const { projection } = useMapContext() as {
     projection: (c: [number, number]) => [number, number] | null;
   };
-  const segments = useMemo(() => {
-    // High step count so high-latitude great-circle arcs (e.g., anything
-    // crossing the Bering Strait or hopping near the pole) render as a
-    // smooth polyline instead of a few coarse chords.
-    const interp = geoInterpolate(from, to);
-    const STEPS = 72;
-    const pts: Array<[number, number]> = [];
-    for (let i = 0; i <= STEPS; i++) pts.push(interp(i / STEPS));
-    return projectSegments(pts, projection);
-  }, [from, to, projection]);
+  const segments = useMemo(
+    () => planeRoutePath(from, to, projection),
+    [from, to, projection],
+  );
   if (!segments) return null;
   return (
     <path
@@ -251,17 +302,6 @@ const MapBody = memo(function MapBody({
   );
   const legs = useMemo(() => getResolvedLegs(), []);
   const visibleLegCount = legsThrough ?? legs.length;
-  const trailPoints = useMemo(() => {
-    const out: Array<[number, number]> = [];
-    const upTo = Math.min(visibleLegCount, legs.length);
-    for (let i = 0; i < upTo; i++) {
-      const leg = legs[i];
-      const interp = geoInterpolate(leg.fromCoord, leg.toCoord);
-      const steps = 36;
-      for (let s = 0; s <= steps; s++) out.push(interp(s / steps));
-    }
-    return out;
-  }, [legs, visibleLegCount]);
 
   const markerScale = Math.max(0.5, Math.min(1.4, zoom / 2));
   const focusedPlace = focusedSlug ? places.find((p) => p.slug === focusedSlug) : null;
@@ -336,17 +376,19 @@ const MapBody = memo(function MapBody({
 
       {showTerminator && <NightShade now={nowMs} />}
 
-      {/* Bulk amber glow under the whole journey — kept fatter and brighter
-       *  so the trail reads even at zoomed-out defaults. */}
-      {showRoute && trailPoints.length > 1 && (
+      {/* Bulk amber glow under the whole journey — each leg as a Bezier
+       *  arc, concatenated into one big path. Plane-route aesthetic. */}
+      {showRoute && (
         <g pointerEvents="none">
-          <Trail
-            points={trailPoints}
+          <BulkJourneyTrail
+            legs={legs}
+            count={visibleLegCount}
             color="rgba(182, 128, 58, 0.16)"
             width={5 / zoom}
           />
-          <Trail
-            points={trailPoints}
+          <BulkJourneyTrail
+            legs={legs}
+            count={visibleLegCount}
             color="rgba(154, 74, 40, 0.75)"
             width={1.3 / zoom}
           />
