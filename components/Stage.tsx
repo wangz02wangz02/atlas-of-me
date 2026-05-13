@@ -13,6 +13,7 @@ import HoveredPlaceCard from "./HoveredPlaceCard";
 import NextDestinations from "./NextDestinations";
 import PlaceDetailClient from "./PlaceDetailClient";
 import UniverseBackdrop from "./UniverseBackdrop";
+import ActivitiesPanel from "./ActivitiesPanel";
 import { LEGS, CITIES, CONTINENT_VIEW } from "@/lib/places";
 import type { Place } from "@/lib/places-types";
 
@@ -45,6 +46,7 @@ export default function Stage({ places }: { places: Place[] }) {
   });
   // Toggle for the Where-Next overlay (formerly in the right hover drawer).
   const [wheresNextOpen, setWheresNextOpen] = useState(false);
+  const [activitiesOpen, setActivitiesOpen] = useState(false);
   const overlayScrollRef = useRef<HTMLDivElement>(null);
 
   const placesByCountry = useMemo(() => {
@@ -391,6 +393,12 @@ export default function Stage({ places }: { places: Place[] }) {
             label="Where next?"
             icon="➤"
           />
+          <TouchbarButton
+            active={activitiesOpen}
+            onClick={() => setActivitiesOpen(true)}
+            label="Activities"
+            icon="⋀"
+          />
           <div className="mx-1 h-7 w-px bg-paper-3" />
           <Link
             href="/passport"
@@ -416,6 +424,32 @@ export default function Stage({ places }: { places: Place[] }) {
       <HoverDrawer side="right">
         <LayersPanel layers={layers} onChange={setLayers} />
       </HoverDrawer>
+
+      {/* Activities modal — log hikes, bikes, kayak trips. Rocket-to-Mars
+       *  is the locked premium option. */}
+      <AnimatePresence>
+        {activitiesOpen && (
+          <motion.div
+            key="activities"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-40 flex items-center justify-center bg-ink/55 backdrop-blur-sm"
+            onClick={() => setActivitiesOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 30, scale: 0.96, opacity: 0 }}
+              animate={{ y: 0, scale: 1, opacity: 1 }}
+              exit={{ y: 30, scale: 0.97, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 240, damping: 26 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ActivitiesPanel onClose={() => setActivitiesOpen(false)} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Where-next modal — opened from the bottom touchbar. */}
       <AnimatePresence>

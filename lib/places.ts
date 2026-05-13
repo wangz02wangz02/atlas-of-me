@@ -96,6 +96,10 @@ export function getStats(): Stats {
     car: 0,
     ship: 0,
     bus: 0,
+    hike: 0,
+    bike: 0,
+    kayak: 0,
+    rocket: 0,
   };
   let totalDistanceKm = 0;
   for (const leg of LEGS) {

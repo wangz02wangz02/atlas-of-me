@@ -43,6 +43,14 @@ export const MODE_STYLE: Record<
   ship: { label: "Ship", color: "#74c0e6", dash: "4 2 1 2", width: 1.3 },
   // Bus: violet, long dash.
   bus: { label: "Bus", color: "#c69bff", dash: "6 3", width: 1.3 },
+  // Hike: forest green, fine dotted.
+  hike: { label: "Hike", color: "#5fa249", dash: "1 2", width: 1.4 },
+  // Bike: lime, dashed.
+  bike: { label: "Bike", color: "#c0e030", dash: "3 2", width: 1.2 },
+  // Kayak: deep teal, wavy-ish.
+  kayak: { label: "Kayak", color: "#1f8aaa", dash: "2 1 1 1", width: 1.3 },
+  // Rocket: hot red — reserved / premium mode.
+  rocket: { label: "Rocket", color: "#ff4e3a", dash: "0", width: 2 },
 };
 
 const PARIS_JOURNAL = `I had a list. I tossed the list. Paris is better when you are slightly late for everything you didn't plan.

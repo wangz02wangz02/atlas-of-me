@@ -236,22 +236,74 @@ function ModeIcon({
       </g>
     );
   }
-  // bus
+  if (mode === "bus") {
+    return (
+      <g transform={`scale(${s.toFixed(3)})`}>
+        <rect
+          x={-6}
+          y={-3}
+          width={12}
+          height={6}
+          rx={1}
+          fill={color}
+          stroke="#fff"
+          strokeWidth={0.6}
+        />
+        <rect x={-4.5} y={-2} width={2} height={2} fill="#fff" opacity={0.75} />
+        <rect x={-1.5} y={-2} width={2} height={2} fill="#fff" opacity={0.75} />
+        <rect x={1.5} y={-2} width={2} height={2} fill="#fff" opacity={0.75} />
+      </g>
+    );
+  }
+  if (mode === "hike") {
+    return (
+      <g transform={`scale(${s.toFixed(3)})`}>
+        {/* simple boot silhouette */}
+        <path
+          d="M-5 2 L-5 -2 L-2 -2 L-2 -5 L3 -5 L3 -2 L5 -2 L5 2 Z"
+          fill={color}
+          stroke="#fff"
+          strokeWidth={0.5}
+          strokeLinejoin="round"
+        />
+      </g>
+    );
+  }
+  if (mode === "bike") {
+    return (
+      <g transform={`scale(${s.toFixed(3)})`}>
+        <circle cx={-4} cy={1.5} r={2.4} fill="none" stroke={color} strokeWidth={1.2} />
+        <circle cx={4} cy={1.5} r={2.4} fill="none" stroke={color} strokeWidth={1.2} />
+        <path
+          d="M-4 1.5 L0 -2.5 L4 1.5 M0 -2.5 L0 -4"
+          stroke={color}
+          strokeWidth={1.1}
+          fill="none"
+          strokeLinecap="round"
+        />
+      </g>
+    );
+  }
+  if (mode === "kayak") {
+    return (
+      <g transform={`scale(${s.toFixed(3)})`}>
+        <ellipse cx={0} cy={0} rx={7} ry={1.5} fill={color} stroke="#fff" strokeWidth={0.5} />
+        <line x1={-8} y1={-3} x2={8} y2={3} stroke={color} strokeWidth={0.9} strokeLinecap="round" />
+      </g>
+    );
+  }
+  // rocket
   return (
     <g transform={`scale(${s.toFixed(3)})`}>
-      <rect
-        x={-6}
-        y={-3}
-        width={12}
-        height={6}
-        rx={1}
+      <path
+        d="M0 -7 L3 -2 L3 3 L-3 3 L-3 -2 Z"
         fill={color}
         stroke="#fff"
         strokeWidth={0.6}
+        strokeLinejoin="round"
       />
-      <rect x={-4.5} y={-2} width={2} height={2} fill="#fff" opacity={0.75} />
-      <rect x={-1.5} y={-2} width={2} height={2} fill="#fff" opacity={0.75} />
-      <rect x={1.5} y={-2} width={2} height={2} fill="#fff" opacity={0.75} />
+      <path d="M-3 3 L-5 5 L-3 4 Z M3 3 L5 5 L3 4 Z" fill="#fff" opacity={0.85} />
+      <circle cx={0} cy={-2} r={1} fill="#fff" />
     </g>
   );
 }
