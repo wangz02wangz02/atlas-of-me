@@ -16,11 +16,28 @@ function fmt(t: number): string {
 
 const BAR_COUNT = 48;
 
+// Audio sources come from per-place JSON today, but the player is a public
+// component — anything that imports it could pass a `src`. Lock the input
+// surface to same-origin /audio/<filename>.<ext>, mirroring the README's
+// stated convention (files live in public/audio/). Anything else is dropped
+// silently and the player renders the "coming soon" placeholder.
+const AUDIO_EXT_RE = /\.(mp3|m4a|aac|ogg|oga|opus|wav|flac)$/i;
+function safeAudioSrc(raw?: string): string | undefined {
+  if (!raw || typeof raw !== "string") return undefined;
+  // must be a same-origin absolute path under /audio/
+  if (!raw.startsWith("/audio/")) return undefined;
+  // forbid traversal segments or query/hash payloads that could reach elsewhere
+  if (raw.includes("..") || raw.includes("?") || raw.includes("#")) return undefined;
+  if (!AUDIO_EXT_RE.test(raw)) return undefined;
+  return raw;
+}
+
 export default function AudioPlayer({ src, durationLabel }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const safeSrc = useMemo(() => safeAudioSrc(src), [src]);
 
   // Deterministic "fake waveform" — heights vary across the bar set so it
   // looks like a recording. Real waveform analysis would need WebAudio +
@@ -62,7 +79,7 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
     }
   };
 
-  const hasAudio = Boolean(src);
+  const hasAudio = Boolean(safeSrc);
   const pct = duration ? (progress / duration) * 100 : 0;
 
   return (
@@ -120,7 +137,7 @@ export default function AudioPlayer({ src, durationLabel }: Props) {
         </div>
       </div>
       {hasAudio && (
-        <audio ref={audioRef} src={src} preload="metadata" className="hidden" />
+        <audio ref={audioRef} src={safeSrc} preload="metadata" className="hidden" />
       )}
     </div>
   );

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { countryAt } from "@/lib/country-lookup";
-import type { UserPin } from "@/lib/user-pins";
+import { NAME_MAX, sanitizeName, type UserPin } from "@/lib/user-pins";
 
 type Props = {
   /** Pin we're editing (with id, city, country) or a freshly captured
@@ -52,8 +52,11 @@ export default function UserPinForm({
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!city.trim()) return;
-    onSave({ city: city.trim(), country: country.trim() });
+    // Sanitize on the way out — strips C0 controls + bidi overrides, collapses
+    // whitespace, and enforces the same length cap that `loadPins` re-checks.
+    const safeCity = sanitizeName(city);
+    if (!safeCity) return;
+    onSave({ city: safeCity, country: sanitizeName(country) });
   };
 
   return (
@@ -99,6 +102,7 @@ export default function UserPinForm({
               autoFocus
               value={city}
               onChange={(e) => setCity(e.target.value)}
+              maxLength={NAME_MAX}
               placeholder="e.g. Reykjavík"
               className="mt-1 w-full rounded-sm border border-paper-3 bg-paper-2/60 px-2 py-1.5 text-[13px] normal-case tracking-normal text-ink"
             />
@@ -116,6 +120,7 @@ export default function UserPinForm({
               type="text"
               value={country}
               onChange={(e) => setCountry(e.target.value)}
+              maxLength={NAME_MAX}
               placeholder="Auto-filled when you click on land"
               className="mt-1 w-full rounded-sm border border-paper-3 bg-paper-2/60 px-2 py-1.5 text-[13px] normal-case tracking-normal text-ink"
             />

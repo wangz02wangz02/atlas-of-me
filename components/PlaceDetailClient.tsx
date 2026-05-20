@@ -28,6 +28,11 @@ const fade: Variants = {
   }),
 };
 
+// Hard cap on the journal draft. Generous (about 5-6 pages of prose) but
+// finite — protects the 5 MB localStorage quota from an accidental
+// document paste and keeps the textarea responsive on slower devices.
+const JOURNAL_MAX = 10_000;
+
 const MODE_GLYPH: Record<TransportMode, string> = {
   flight: "✈",
   train: "▤",
@@ -62,12 +67,15 @@ export default function PlaceDetailClient({
   const nextCity = next ? CITIES[next] : null;
   const isHub = place.stops.length > 1;
 
-  // Load any persisted draft for this place
+  // Load any persisted draft for this place. Capped at JOURNAL_MAX on both
+  // read and write so a tampered localStorage value (or an old over-long
+  // entry from before the cap existed) can't blow out the textarea or
+  // re-trigger the quota error path.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
       const saved = window.localStorage.getItem(`journal:${place.slug}`);
-      setJournalDraft(saved ?? "");
+      setJournalDraft(saved ? saved.slice(0, JOURNAL_MAX) : "");
     } catch {
       /* noop */
     }
@@ -192,12 +200,17 @@ export default function PlaceDetailClient({
                     Add a journal entry
                   </h3>
                   <span className="text-[10px] text-ink-faint">
-                    {journalDraft.length > 0 ? "saved locally" : "draft"}
+                    {journalDraft.length > 0
+                      ? `saved locally · ${journalDraft.length.toLocaleString()} / ${JOURNAL_MAX.toLocaleString()}`
+                      : "draft"}
                   </span>
                 </div>
                 <textarea
                   value={journalDraft}
-                  onChange={(e) => setJournalDraft(e.target.value)}
+                  onChange={(e) =>
+                    setJournalDraft(e.target.value.slice(0, JOURNAL_MAX))
+                  }
+                  maxLength={JOURNAL_MAX}
                   placeholder={`Write about ${place.name}…`}
                   rows={6}
                   className="block w-full resize-y rounded-md border border-paper-3 bg-paper-2/40 p-3 font-display text-lg italic text-ink placeholder:text-ink-faint/70 focus:border-amber focus:outline-none focus:ring-0"

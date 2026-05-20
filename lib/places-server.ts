@@ -6,6 +6,18 @@ import { getAllPlaces, getPlace } from "./places";
 
 const PHOTO_EXTS = new Set([".jpg", ".jpeg", ".png", ".webp", ".avif"]);
 
+// The only host the public CSP + next.config remotePatterns allow. Validating
+// at load-time means a typo in wiki-photos.json (commons.wikimedia.org, http://,
+// any other CDN) fails closed at build instead of producing an <img> the
+// browser will refuse to render.
+const WIKI_PREFIX = "https://upload.wikimedia.org/wikipedia/commons/";
+
+// Slugs become URL path segments under /places/<slug>/. Anything outside this
+// safelist is treated as a stray directory and skipped — guarantees the
+// resolved path stays inside public/places/ even if a weird folder name slips
+// onto disk.
+const SAFE_SLUG_RE = /^[a-z0-9][a-z0-9_-]{0,63}$/;
+
 type WikiPhoto = {
   src: string;
   alt: string;
@@ -24,7 +36,13 @@ function loadRealPhotos(): Map<string, string[]> {
     const root = path.join(process.cwd(), "public", "places");
     if (!fs.existsSync(root)) return (photoCache = out);
     for (const slug of fs.readdirSync(root)) {
+      // Pin the slug to a safe character set and confirm the resolved
+      // directory is still inside `root` — belt-and-braces against any odd
+      // entry (symlink, dotfile, traversal segment) on disk.
+      if (!SAFE_SLUG_RE.test(slug)) continue;
       const dir = path.join(root, slug);
+      const rel = path.relative(root, dir);
+      if (rel.startsWith("..") || path.isAbsolute(rel)) continue;
       if (!fs.statSync(dir).isDirectory()) continue;
       const files = fs
         .readdirSync(dir)
@@ -44,11 +62,27 @@ function loadWikiPhotos(): Record<string, WikiPhoto> {
   try {
     const p = path.join(process.cwd(), "data", "wiki-photos.json");
     if (!fs.existsSync(p)) return (wikiCache = {});
-    wikiCache = JSON.parse(fs.readFileSync(p, "utf8")) as Record<
+    const raw = JSON.parse(fs.readFileSync(p, "utf8")) as Record<
       string,
-      WikiPhoto
+      Partial<WikiPhoto>
     >;
-    return wikiCache;
+    // Filter every entry through the WIKI_PREFIX gate so anything that would
+    // be blocked by the CSP at runtime is dropped here instead — keeps the
+    // photo fallback aligned with `next.config.ts` remotePatterns.
+    const safe: Record<string, WikiPhoto> = {};
+    for (const [slug, entry] of Object.entries(raw)) {
+      if (!entry || typeof entry.src !== "string") continue;
+      if (!entry.src.startsWith(WIKI_PREFIX)) continue;
+      if (!SAFE_SLUG_RE.test(slug)) continue;
+      safe[slug] = {
+        src: entry.src,
+        alt: typeof entry.alt === "string" ? entry.alt.slice(0, 200) : "",
+        page: typeof entry.page === "string" ? entry.page : undefined,
+        width: typeof entry.width === "number" ? entry.width : undefined,
+        height: typeof entry.height === "number" ? entry.height : undefined,
+      };
+    }
+    return (wikiCache = safe);
   } catch {
     return (wikiCache = {});
   }
