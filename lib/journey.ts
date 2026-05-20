@@ -33,8 +33,10 @@ export const MODE_STYLE: Record<
   TransportMode,
   { label: string; color: string; dash: string; width: number }
 > = {
-  // Flight: hot magenta — pops on both navy ocean AND sand land.
-  flight: { label: "Flight", color: "#ff5599", dash: "5 4", width: 1 },
+  // Flight: hot magenta — pops on both navy ocean AND sand land. Solid line;
+  // the natural great-circle arc carries the "this is a flight" read on its
+  // own without needing a dash.
+  flight: { label: "Flight", color: "#ff5599", dash: "0", width: 1.1 },
   // Train: cool cyan, thick & solid — reads as a steel rail.
   train: { label: "Train", color: "#4ec9d8", dash: "0", width: 1.7 },
   // Drive: lime — distinct from cyan; visible on warm sand land.

@@ -17,7 +17,7 @@ import {
   ZoomableGroup,
   useMapContext,
 } from "react-simple-maps";
-import { geoCircle } from "d3-geo";
+import { geoCircle, geoInterpolate } from "d3-geo";
 import { motion, AnimatePresence } from "motion/react";
 import type { Place } from "@/lib/places-types";
 import {
@@ -102,89 +102,64 @@ function NightShade({ now }: { now: number }) {
 }
 
 /**
- * Build a "plane route" SVG path between two geographic points.  Instead of
- * sampling the great-circle as a polyline (which on equirectangular flattens
- * to a near-straight line for most pairs and produces an ugly horizontal
- * stripe at high lat for trans-pacific routes), we draw a single quadratic
- * Bezier between the projected endpoints with a control point offset
- * *perpendicular to the chord, toward the top of the map*.  Every leg ends
- * up reading like a plane-route arc — gentle for short hops, dramatic for
- * trans-continental.
+ * Build a "plane route" SVG path between two geographic points by sampling
+ * the actual great-circle (via d3's geoInterpolate) and projecting each
+ * sample into screen space. The previous approach used a single quadratic
+ * Bezier with a control point bowed toward the top of the map; it read as
+ * a flat decorative sticker rather than a real flight path, especially on
+ * trans-Pacific routes where the antimeridian split produced two stubby
+ * mirror arcs.
  *
- * For pairs that are shorter going via the antimeridian (|Δlon| > 180°),
- * the path is split into two arcs that meet the seam at the canvas edges,
- * matching how airline maps draw "going over the Pacific."
+ * Sampling the geodesic gives the natural high-arc shape we associate with
+ * airline routes (NYC→Tokyo curving up over the Arctic) for free, on every
+ * projection — and short hops still draw nearly straight because the great
+ * circle between two nearby points already is.
+ *
+ * Antimeridian handling: when consecutive projected points jump in screen-X
+ * by more than half a world width, we break the path so each run renders
+ * as a continuous curve and the seam is left blank.
  */
+const ARC_SAMPLES = 48;
 function planeRoutePath(
   from: [number, number],
   to: [number, number],
   projection: (c: [number, number]) => [number, number] | null,
 ): string {
-  function arcPath(
-    a: [number, number],
-    b: [number, number],
-  ): string | null {
-    const pa = projection(a);
-    const pb = projection(b);
-    if (
-      !pa ||
-      !pb ||
-      !Number.isFinite(pa[0]) ||
-      !Number.isFinite(pa[1]) ||
-      !Number.isFinite(pb[0]) ||
-      !Number.isFinite(pb[1])
-    ) {
-      return null;
-    }
-    const dx = pb[0] - pa[0];
-    const dy = pb[1] - pa[1];
-    const len = Math.hypot(dx, dy);
-    if (len < 0.1) return null;
+  const interp = geoInterpolate(from, to);
+  const runs: Array<Array<[number, number]>> = [];
+  let current: Array<[number, number]> = [];
+  let lastX: number | null = null;
+  const SEAM_JUMP = WORLD_W / 2;
 
-    // Gentle curvature only: short hops draw essentially straight, long
-    // hauls get a moderate bow toward the top of the map. The user
-    // previously called the heavy arcs "way too curved" — these
-    // values keep the line smooth rather than performative.
-    //  factor 0.07  → for a 300px chord, ~21px offset (subtle)
-    //  cap     55px → no leg gets more than a modest bow
-    const offset = Math.min(len * 0.07, 55);
-    // Below ~3px the curve isn't perceptible — render as a straight
-    // line instead, which is cleaner than a degenerate Bezier.
-    if (offset < 3) {
-      return `M${pa[0].toFixed(2)},${pa[1].toFixed(2)} L${pb[0].toFixed(2)},${pb[1].toFixed(2)}`;
+  for (let i = 0; i <= ARC_SAMPLES; i++) {
+    const t = i / ARC_SAMPLES;
+    const geo = interp(t) as [number, number];
+    const proj = projection(geo);
+    if (!proj || !Number.isFinite(proj[0]) || !Number.isFinite(proj[1])) {
+      if (current.length >= 2) runs.push(current);
+      current = [];
+      lastX = null;
+      continue;
     }
-
-    // Perpendicular pointing toward the top of the map (negative y).
-    let px = -dy / len;
-    let py = dx / len;
-    if (py > 0) {
-      px = -px;
-      py = -py;
+    if (lastX !== null && Math.abs(proj[0] - lastX) > SEAM_JUMP) {
+      if (current.length >= 2) runs.push(current);
+      current = [];
     }
-    const mx = (pa[0] + pb[0]) / 2 + px * offset;
-    const my = (pa[1] + pb[1]) / 2 + py * offset;
-
-    return `M${pa[0].toFixed(2)},${pa[1].toFixed(2)} Q${mx.toFixed(2)},${my.toFixed(2)} ${pb[0].toFixed(2)},${pb[1].toFixed(2)}`;
+    current.push([proj[0], proj[1]]);
+    lastX = proj[0];
   }
+  if (current.length >= 2) runs.push(current);
 
-  // Trans-pacific / antimeridian case — split at the seam so the line goes
-  // "out the right edge, in the left edge" instead of looping across the
-  // entire map the wrong way.
-  let lonDiff = to[0] - from[0];
-  if (lonDiff > 180 || lonDiff < -180) {
-    const goingEast = lonDiff < 0;
-    // Latitude at the seam — average of the two points (rough approximation;
-    // great-circle apex is messier but visually this reads well).
-    const midLat = (from[1] + to[1]) / 2;
-    const seam1: [number, number] = goingEast ? [180, midLat] : [-180, midLat];
-    const seam2: [number, number] = goingEast ? [-180, midLat] : [180, midLat];
-    const a = arcPath(from, seam1);
-    const b = arcPath(seam2, to);
-    return [a, b].filter(Boolean).join(" ");
-  }
-
-  const single = arcPath(from, to);
-  return single ?? "";
+  // Catmull-Rom gives a buttery curve through the sample points; for ≤2
+  // points (very rare — e.g., one endpoint failed to project) fall back to
+  // a plain line so we never emit a degenerate path.
+  return runs
+    .map((run) =>
+      run.length >= 3
+        ? catmullRomPath(run)
+        : `M${run[0][0].toFixed(2)},${run[0][1].toFixed(2)} L${run[1][0].toFixed(2)},${run[1][1].toFixed(2)}`,
+    )
+    .join(" ");
 }
 
 /**
